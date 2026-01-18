@@ -1,0 +1,16 @@
+{
+  "tasks": [
+    {
+      "name": "Build",
+      "working_directory": ".",
+      "command": "echo 'Building...' && exit 0",
+      "stage": "test"
+    },
+    {
+      "name": "Release",
+      "working_directory": ".",
+      "command": "echo 'Releasing...' && exit 0",
+      "stage": "release"
+    }
+  ]
+}

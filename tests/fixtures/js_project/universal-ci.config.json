@@ -1,0 +1,9 @@
+{
+  "tasks": [
+    {
+      "name": "JavaScript Test",
+      "working_directory": ".",
+      "command": "npm test"
+    }
+  ]
+}

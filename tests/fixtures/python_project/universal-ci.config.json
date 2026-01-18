@@ -1,0 +1,9 @@
+{
+  "tasks": [
+    {
+      "name": "Python Test",
+      "working_directory": ".",
+      "command": "echo 'Running Python tests...' && exit 0"
+    }
+  ]
+}
