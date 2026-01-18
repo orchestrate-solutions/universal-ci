@@ -42,12 +42,13 @@ jobs:
           toolchain: stable
           profile: minimal
 
-      # --- Logic Execution ---
+      # --- Logic Execution (Shell - Zero Dependencies) ---
       
       - name: Fetch Logic Engine
         run: |
-          # Fetch verify.py from the Universal CI main branch
-          curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/universal-ci-testing-env/verify.py -o .verify_engine.py
+          # Fetch verify.sh from the Universal CI main branch
+          curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/verify.sh -o .verify_engine.sh
+          chmod +x .verify_engine.sh
           
       - name: Run Validation
-        run: python3 .verify_engine.py --config "${{ inputs.config-path }}"
+        run: ./.verify_engine.sh --config "${{ inputs.config-path }}"

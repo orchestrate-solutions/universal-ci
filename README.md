@@ -6,29 +6,33 @@
 
 Universal CI is a lightweight, configuration-driven CI/CD tool that runs the same way locally and in the cloud. Define your build, test, and deployment tasks in simple JSON configuration files, then execute them consistently across environments.
 
+**Zero dependencies.** Works on any system with a shell (macOS, Linux) or PowerShell (Windows).
+
 ## ✨ Features
 
-- **🔧 Config-Driven**: Define tasks in `universal-ci.config.json` - no complex YAML or scripting required
-- **🏠 Local First**: Test your CI locally before pushing (works with `act` for GitHub Actions simulation)
+- **🪶 Zero Dependencies**: Pure shell script - no Python, Node, or runtime required
+- **🔧 Config-Driven**: Define tasks in `universal-ci.config.json` - no complex YAML
+- **🏠 Local First**: Test your CI locally before pushing
 - **📦 Multi-Stage**: Separate `test` and `release` stage configurations
-- **🔄 Environment Agnostic**: Runs identically in local shell, GitHub Actions, or any CI platform
-- **🚀 Zero Dependencies**: Pure Python with minimal external requirements
-- **🎯 Task-Based**: Each task specifies its working directory and command independently
+- **🌍 Cross-Platform**: Shell script for macOS/Linux, PowerShell for Windows
+- **🎯 Task-Based**: Each task specifies its working directory and command
 
 ## 📦 Installation
 
-### Option 1: Clone and Run
+### Quick Start (One-liner)
 ```bash
-git clone https://github.com/orchestrate-solutions/universal-ci.git
-cd universal-ci/universal-ci-testing-env
-python3 verify.py
+# macOS / Linux
+curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/verify.sh -o verify.sh && chmod +x verify.sh
+
+# Windows (PowerShell)
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/verify.ps1" -OutFile "verify.ps1"
 ```
 
-### Option 2: Direct Download
+### Clone Repository
 ```bash
-# Download verify.py and run it directly
-curl -O https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/universal-ci-testing-env/verify.py
-python3 verify.py
+git clone https://github.com/orchestrate-solutions/universal-ci.git
+cd universal-ci
+./verify.sh  # or .\verify.ps1 on Windows
 ```
 
 ## 🚀 Quick Start
@@ -60,11 +64,11 @@ Create `universal-ci.config.json` in your project root:
 
 ### 2. Run Locally
 ```bash
-# From your project root
-python3 /path/to/verify.py
+# macOS / Linux
+./verify.sh
 
-# Or if verify.py is in your project
-python3 verify.py
+# Windows
+.\verify.ps1
 ```
 
 ### 3. GitHub Actions Integration
@@ -79,8 +83,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run Universal CI
         run: |
-          curl -O https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/universal-ci-testing-env/verify.py
-          python3 verify.py
+          curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/verify.sh -o verify.sh
+          chmod +x verify.sh
+          ./verify.sh
 ```
 
 ## 📋 Configuration Schema
@@ -115,66 +120,68 @@ jobs:
 ```
 
 ### Task Properties
-- **`name`** (required): Human-readable task identifier
-- **`working_directory`** (required): Directory to execute command from (relative to config file)
-- **`command`** (required): Shell command to run
-- **`stage`** (optional): `"test"` or `"release"` (defaults to `"test"`)
+| Property | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `name` | ✅ | - | Human-readable task identifier |
+| `working_directory` | ✅ | - | Directory to execute command from |
+| `command` | ✅ | - | Shell command to run |
+| `stage` | ❌ | `"test"` | `"test"` or `"release"` |
 
-## 🎬 Local Testing with `act`
-
-Test your GitHub Actions workflows locally using `act`:
-
-```bash
-# Install act (macOS)
-brew install act
-
-# Run from project root
-./universal-ci-testing-env/run-local-ci.sh
-```
-
-This ensures your local tests match exactly what runs in GitHub Actions.
-
-## 📁 Project Structure
-
-```
-your-project/
-├── universal-ci.config.json    # Your CI configuration
-├── verify.py                   # (Optional) Local copy of verifier
-└── ...your code...
-```
-
-## 🧪 Testing Universal CI
-
-The tool comes with its own comprehensive test suite:
+## 🔧 CLI Options
 
 ```bash
-cd universal-ci-testing-env
-pip3 install -r tests/requirements.txt
-python3 -m pytest tests/ -v
+# macOS / Linux
+./verify.sh [OPTIONS]
+
+# Windows  
+.\verify.ps1 [OPTIONS]
 ```
 
-## 🔧 Advanced Usage
+| Option | Description |
+|--------|-------------|
+| `--config <path>` | Path to config file (default: `universal-ci.config.json`) |
+| `--stage <stage>` | Stage to run: `test` or `release` (default: `test`) |
+| `--help` | Show help message |
 
-### Custom Config Path
+### Examples
 ```bash
-python3 verify.py --config path/to/my-config.json
+# Run with default config
+./verify.sh
+
+# Run specific config
+./verify.sh --config my-project.json
+
+# Run release tasks
+./verify.sh --stage release
+
+# Windows equivalent
+.\verify.ps1 -Config my-project.json -Stage release
 ```
 
-### Run Specific Stage
+## 📁 Available Scripts
+
+| Script | Platform | Dependencies |
+|--------|----------|--------------|
+| `verify.sh` | macOS, Linux, WSL | POSIX shell (sh/bash) |
+| `verify.ps1` | Windows, macOS*, Linux* | PowerShell 5.1+ |
+| `universal-ci-testing-env/verify.py` | Any | Python 3.8+ |
+
+*PowerShell Core required on macOS/Linux
+
+## 🎬 Local Testing with Git Hooks
+
+Add a pre-push hook to verify before every push:
+
 ```bash
-# Run only test tasks
-python3 verify.py --stage test
+# Create hook
+cat > .git/hooks/pre-push << 'EOF'
+#!/bin/sh
+echo "🔍 Running Universal CI verification..."
+./verify.sh || exit 1
+EOF
 
-# Run only release tasks
-python3 verify.py --stage release
+chmod +x .git/hooks/pre-push
 ```
-
-### Config Resolution
-Universal CI automatically finds your config file by checking:
-1. Specified path (`--config` flag)
-2. Current directory
-3. Parent directories (up to 3 levels)
-4. Git repository root
 
 ## 🌟 Philosophy
 
@@ -190,7 +197,7 @@ Universal CI automatically finds your config file by checking:
 1. Fork the repository
 2. Create a feature branch
 3. Add tests for new functionality
-4. Ensure all tests pass: `python3 -m pytest tests/ -v`
+4. Ensure all tests pass: `./verify.sh`
 5. Submit a pull request
 
 ## 📄 License

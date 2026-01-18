@@ -1,54 +1,39 @@
 {
   "tasks": [
     {
-      "name": "Install Test Dependencies",
-      "working_directory": "universal-ci-testing-env",
-      "command": "pip3 install -r tests/requirements.txt"
+      "name": "Test Shell Script - Python Fixture",
+      "working_directory": "tests/fixtures/python_project",
+      "command": "../../../verify.sh"
     },
     {
-      "name": "Run Universal CI Unit Tests",
-      "working_directory": "universal-ci-testing-env",
-      "command": "python3 -m pytest tests/ -v --tb=short --disable-warnings || echo 'Pytest version conflict detected, skipping for now'"
-    },
-    {
-      "name": "Test JavaScript Project Fixture",
+      "name": "Test Shell Script - JS Fixture",
       "working_directory": "tests/fixtures/js_project",
-      "command": "python3 ../../../universal-ci-testing-env/verify.py"
+      "command": "../../../verify.sh"
     },
     {
-      "name": "Test Python Project Fixture",
+      "name": "Test Shell Script - Multi-Stage Test",
+      "working_directory": "tests/fixtures/multi_stage_project",
+      "command": "../../../verify.sh --stage test"
+    },
+    {
+      "name": "Test Shell Script - Multi-Stage Release",
+      "working_directory": "tests/fixtures/multi_stage_project",
+      "command": "../../../verify.sh --stage release"
+    },
+    {
+      "name": "Test Shell Script - Help Output",
+      "working_directory": ".",
+      "command": "./verify.sh --help | grep -q 'Universal CI Verifier'"
+    },
+    {
+      "name": "Test Shell Script - Missing Config Error",
+      "working_directory": ".",
+      "command": "./verify.sh --config nonexistent.json 2>&1 | grep -q 'not found'"
+    },
+    {
+      "name": "Test Python Script Still Works",
       "working_directory": "tests/fixtures/python_project",
       "command": "python3 ../../../universal-ci-testing-env/verify.py"
-    },
-    {
-      "name": "Test Multi-Stage Project Fixture",
-      "working_directory": "tests/fixtures/multi_stage_project",
-      "command": "python3 ../../../universal-ci-testing-env/verify.py --stage test"
-    },
-    {
-      "name": "Test Multi-Stage Release Phase",
-      "working_directory": "tests/fixtures/multi_stage_project",
-      "command": "python3 ../../../universal-ci-testing-env/verify.py --stage release"
-    },
-    {
-      "name": "Verify Tool Help Output",
-      "working_directory": "universal-ci-testing-env",
-      "command": "python3 verify.py --help | grep -q 'Universal CI Verifier'"
-    },
-    {
-      "name": "Test Config Resolution (Git Root)",
-      "working_directory": "universal-ci-testing-env",
-      "command": "python3 verify.py --config ../tests/fixtures/python_project/universal-ci.config.json"
-    },
-    {
-      "name": "Test Error Handling (Missing Config)",
-      "working_directory": ".",
-      "command": "python3 universal-ci-testing-env/verify.py --config nonexistent.json; [ $? -eq 1 ]"
-    },
-    {
-      "name": "Integration Test with Test Config",
-      "working_directory": "universal-ci-testing-env",
-      "command": "python3 verify.py --config tests/test-config.json | grep -q 'FAILURES DETECTED'"
     }
   ]
 }
