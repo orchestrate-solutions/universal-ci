@@ -59,8 +59,9 @@ class Task:
     name: str
     working_directory: str
     command: str
+    stage: str = "test"  # 'test' or 'release'
 
-def load_config(config_path: str = None) -> List[Task]:
+def load_config(config_path: str = None, target_stage: str = "test") -> List[Task]:
     # Resolve the actual config path
     actual_path = get_config_path(config_path)
     
@@ -70,16 +71,22 @@ def load_config(config_path: str = None) -> List[Task]:
         print(f"Please create {CONFIG_FILE} in the root directory.")
         sys.exit(1)
         
-    with open(config_path, 'r') as f:
+    with open(actual_path, 'r') as f:
         data = json.load(f)
         
     tasks = []
     for t in data.get("tasks", []):
-        tasks.append(Task(
-            name=t["name"],
-            working_directory=t["working_directory"],
-            command=t["command"]
-        ))
+        # Default to 'test' stage if not specified
+        task_stage = t.get("stage", "test")
+        
+        # Only include tasks for the requested stage
+        if task_stage == target_stage:
+            tasks.append(Task(
+                name=t["name"],
+                working_directory=t["working_directory"],
+                command=t["command"],
+                stage=task_stage
+            ))
     return tasks
 
 def run_task(task: Task) -> bool:
@@ -117,6 +124,7 @@ def run_task(task: Task) -> bool:
 def main():
     parser = argparse.ArgumentParser(description='Universal CI Verifier')
     parser.add_argument('--config', default=CONFIG_FILE, help='Path to config file')
+    parser.add_argument('--stage', default='test', choices=['test', 'release'], help='Stage to execute (test or release)')
     args = parser.parse_args()
     
     print("🌐 Starting Universal CI Verification (Config-Driven)...")
@@ -127,11 +135,15 @@ def main():
     else:
         print("   📍 Environment: Local Shell")
         
-    tasks = load_config(args.config)
+    tasks = load_config(args.config, args.stage)
     failures = []
     
     print("---------------------------------------------------")
-    print("🛠  BUILD & TEST PHASE")
+    print(f"🛠  {args.stage.upper()} PHASE")
+    
+    if not tasks:
+        print(f"   {YELLOW}No tasks found for stage: {args.stage}{RESET}")
+        sys.exit(0)
     
     for task in tasks:
         success = run_task(task)
