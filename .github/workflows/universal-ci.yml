@@ -1,0 +1,14 @@
+name: Universal CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Test Universal CI Tool
+    uses: ./.github/workflows/reusable.yml
+    with:
+      config-path: 'universal-ci.config.json'
