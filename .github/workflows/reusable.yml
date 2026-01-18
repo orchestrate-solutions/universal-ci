@@ -1,0 +1,53 @@
+name: Universal CI Logic
+on:
+  workflow_call:
+    inputs:
+      config-path:
+        required: false
+        default: 'universal-ci.config.json'
+        type: string
+        description: 'Path to the configuration file'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # --- Universal Environment Setup ---
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+          
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+
+      # --- Logic Execution ---
+      
+      - name: Fetch Logic Engine
+        run: |
+          # Fetch verify.py from the Universal CI main branch
+          curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/universal-ci-testing-env/verify.py -o .verify_engine.py
+          
+      - name: Run Validation
+        run: python3 .verify_engine.py --config "${{ inputs.config-path }}"
