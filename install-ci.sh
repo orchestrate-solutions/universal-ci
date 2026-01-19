@@ -1,6 +1,6 @@
 #!/bin/sh
 # Universal CI - One-Command Bootstrap
-# Usage: curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install.sh | sh
+# Usage: curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install-ci.sh | sh
 #
 # Options (pass via -s --):
 #   curl -sL ... | sh -s -- --no-hooks          Skip Git hooks setup
@@ -11,7 +11,7 @@
 #   curl -sL ... | sh -s -- --docker            Also create Docker setup
 #
 # This script will:
-# 1. Download verify.sh
+# 1. Download run-ci.sh
 # 2. Auto-detect your project type (Node, Python, Go, Rust, .NET, Java, etc.)
 # 3. Generate universal-ci.config.json with appropriate tasks
 # 4. Optionally set up Git pre-push hooks
@@ -25,7 +25,7 @@ set -e
 
 REPO_URL="https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main"
 CONFIG_FILE="universal-ci.config.json"
-VERIFY_SCRIPT="verify.sh"
+VERIFY_SCRIPT="run-ci.sh"
 
 # Default options
 SKIP_HOOKS=false
@@ -852,10 +852,10 @@ jobs:
       
       - name: Run Universal CI
         run: |
-          curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/verify.sh -o .verify.sh
-          chmod +x .verify.sh
-          ./.verify.sh
-          rm .verify.sh
+          curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/run-ci.sh -o .run-ci.sh
+          chmod +x .run-ci.sh
+          ./.run-ci.sh
+          rm .run-ci.sh
 EOF
 
     log_success "Created .github/workflows/ci.yml"
@@ -887,7 +887,7 @@ RUN apk add --no-cache \
 WORKDIR /app
 
 # Copy Universal CI
-COPY verify.sh /usr/local/bin/uci
+COPY run-ci.sh /usr/local/bin/uci
 RUN chmod +x /usr/local/bin/uci
 
 ENTRYPOINT ["uci"]
@@ -939,12 +939,12 @@ setup_git_hooks() {
 
 echo "🔍 Running Universal CI verification..."
 
-if [ -f "./verify.sh" ]; then
-    ./verify.sh
+if [ -f "./run-ci.sh" ]; then
+    ./run-ci.sh
 elif command -v curl >/dev/null 2>&1; then
-    curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/verify.sh | sh
+    curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/run-ci.sh | sh
 else
-    echo "⚠️  verify.sh not found and curl not available"
+    echo "⚠️  run-ci.sh not found and curl not available"
     exit 0
 fi
 
@@ -1017,7 +1017,7 @@ show_help() {
 Universal CI Bootstrap
 
 Usage:
-  curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install.sh | sh
+  curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install-ci.sh | sh
   curl -sL ... | sh -s -- [OPTIONS]
 
 Options:
@@ -1032,16 +1032,16 @@ Options:
 
 Examples:
   # Basic install with auto-detection
-  curl -sL .../install.sh | sh
+  curl -sL .../install-ci.sh | sh
 
   # Force Node.js config
-  curl -sL .../install.sh | sh -s -- --type nodejs
+  curl -sL .../install-ci.sh | sh -s -- --type nodejs
 
   # Full setup with GitHub Actions
-  curl -sL .../install.sh | sh -s -- --github-actions
+  curl -sL .../install-ci.sh | sh -s -- --github-actions
 
   # Non-interactive with everything
-  curl -sL .../install.sh | sh -s -- -y --github-actions --docker
+  curl -sL .../install-ci.sh | sh -s -- -y --github-actions --docker
 EOF
 }
 
@@ -1050,7 +1050,7 @@ main() {
     
     print_banner
     
-    # Step 1: Download verify.sh
+    # Step 1: Download run-ci.sh
     log_step "Downloading Universal CI..."
     if curl -sL "${REPO_URL}/${VERIFY_SCRIPT}" -o "$VERIFY_SCRIPT"; then
         chmod +x "$VERIFY_SCRIPT"
@@ -1152,7 +1152,7 @@ main() {
     echo ""
     echo "Next steps:"
     echo "  1. Review ${CONFIG_FILE} and customize tasks"
-    echo "  2. Run ${CYAN}./verify.sh${RESET} to verify your project"
+    echo "  2. Run ${CYAN}./run-ci.sh${RESET} to verify your project"
     echo "  3. Commit and push - hooks will verify automatically"
     echo ""
     

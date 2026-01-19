@@ -29,7 +29,7 @@ if ($PSVersionTable.PSVersion.Major -lt 6 -and $Host.Name -notmatch "ISE") {
 function Show-Help {
     Write-Host "Universal CI Verifier - PowerShell Edition"
     Write-Host ""
-    Write-Host "Usage: .\verify.ps1 [OPTIONS]"
+    Write-Host "Usage: .\run-ci.ps1 [OPTIONS]"
     Write-Host ""
     Write-Host "Options:"
     Write-Host "  -Config <path>       Path to config file (default: universal-ci.config.json)"

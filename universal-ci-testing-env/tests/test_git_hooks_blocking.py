@@ -44,7 +44,7 @@ class TestGitHooksSetup:
         
         pre_commit_hook = hooks_dir / "pre-commit"
         pre_commit_content = """#!/bin/sh
-./verify.sh
+./run-ci.sh
 exit $?
 """
         pre_commit_hook.write_text(pre_commit_content)
@@ -76,7 +76,7 @@ exit $?
         
         pre_push_hook = hooks_dir / "pre-push"
         pre_push_content = """#!/bin/sh
-./verify.sh --stage release
+./run-ci.sh --stage release
 exit $?
 """
         pre_push_hook.write_text(pre_push_content)
@@ -109,7 +109,7 @@ class TestScriptFailureBlocksBehavior:
         config_file.write_text(json.dumps(config, indent=2))
         
         # Create dummy verify script
-        verify_script = repo_path / "verify.sh"
+        verify_script = repo_path / "run-ci.sh"
         verify_script.write_text("""#!/bin/sh
 # Dummy verify script that can fail
 exit $VERIFY_EXIT_CODE
@@ -125,7 +125,7 @@ exit $VERIFY_EXIT_CODE
         pre_commit = hooks_dir / "pre-commit"
         pre_commit.write_text("""#!/bin/sh
 cd "$(git rev-parse --show-toplevel)"
-VERIFY_EXIT_CODE=1 ./verify.sh --stage test
+VERIFY_EXIT_CODE=1 ./run-ci.sh --stage test
 exit $?
 """)
         pre_commit.chmod(0o755)
@@ -134,7 +134,7 @@ exit $?
         pre_push = hooks_dir / "pre-push"
         pre_push.write_text("""#!/bin/sh
 cd "$(git rev-parse --show-toplevel)"
-VERIFY_EXIT_CODE=1 ./verify.sh --stage release
+VERIFY_EXIT_CODE=1 ./run-ci.sh --stage release
 exit $?
 """)
         pre_push.chmod(0o755)
@@ -142,7 +142,7 @@ exit $?
     def test_failed_test_script_blocks_commit(self, tmp_path, monkeypatch):
         """
         RED: When a test script fails, commit should be blocked
-        SCENARIO: Pre-commit hook runs verify.sh with failing test stage
+        SCENARIO: Pre-commit hook runs run-ci.sh with failing test stage
         EXPECTED: Commit should fail with non-zero exit code
         """
         repo_path = tmp_path / "test_repo"
@@ -180,7 +180,7 @@ exit $?
     def test_passing_test_script_allows_commit(self, tmp_path, monkeypatch):
         """
         GREEN: When test script passes, commit should succeed
-        SCENARIO: Pre-commit hook runs verify.sh with passing test stage
+        SCENARIO: Pre-commit hook runs run-ci.sh with passing test stage
         EXPECTED: Commit should succeed with exit code 0
         """
         repo_path = tmp_path / "test_repo"
@@ -204,7 +204,7 @@ exit $?
         pre_commit = hooks_dir / "pre-commit"
         pre_commit.write_text("""#!/bin/sh
 cd "$(git rev-parse --show-toplevel)"
-./verify.sh --stage test
+./run-ci.sh --stage test
 exit $?
 """)
         pre_commit.chmod(0o755)
@@ -279,7 +279,7 @@ exit $?
     def test_release_stage_blocks_push(self, tmp_path, monkeypatch):
         """
         RED: Failed release stage should block push operations
-        SCENARIO: Pre-push hook runs verify.sh --stage release and it fails
+        SCENARIO: Pre-push hook runs run-ci.sh --stage release and it fails
         EXPECTED: Push should be blocked
         """
         repo_path = tmp_path / "test_repo"
@@ -355,9 +355,9 @@ class TestBlockingErrorMessages:
         pre_commit = hooks_dir / "pre-commit"
         pre_commit.write_text("""#!/bin/sh
 cd "$(git rev-parse --show-toplevel)"
-if ! ./verify.sh --stage test 2>&1 | grep -q "Security Audit"; then
+if ! ./run-ci.sh --stage test 2>&1 | grep -q "Security Audit"; then
     # Task output should mention Security Audit
-    ./verify.sh --stage test 2>&1
+    ./run-ci.sh --stage test 2>&1
 fi
 """)
         pre_commit.chmod(0o755)
@@ -365,7 +365,7 @@ fi
         monkeypatch.chdir(repo_path)
         
         # Create dummy verify that mimics behavior
-        verify = repo_path / "verify.sh"
+        verify = repo_path / "run-ci.sh"
         verify.write_text("""#!/bin/sh
 echo "🔍 Checking Security Audit..."
 echo "❌ Security Audit FAILED"

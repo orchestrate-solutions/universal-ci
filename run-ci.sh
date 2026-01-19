@@ -787,7 +787,7 @@ run_init() {
     echo ""
     echo "Next steps:"
     echo "  1. Review and customize ${CONFIG_FILE}"
-    echo "  2. Run: ./verify.sh"
+    echo "  2. Run: ./run-ci.sh"
     exit 0
 }
 

@@ -105,7 +105,7 @@ These tests validate the critical safety feature of Universal CI:
 │ Developer: git commit                           │
 │                                                 │
 │ → Git triggers pre-commit hook                  │
-│ → Hook runs: ./verify.sh --stage test           │
+│ → Hook runs: ./run-ci.sh --stage test           │
 │                                                 │
 │ IF script exits 0 (SUCCESS):                    │
 │    Commit proceeds ✅                           │
@@ -123,7 +123,7 @@ These tests validate the critical safety feature of Universal CI:
 ```bash
 #!/bin/sh
 cd "$(git rev-parse --show-toplevel)"
-./verify.sh --stage test
+./run-ci.sh --stage test
 exit $?
 ```
 
@@ -131,7 +131,7 @@ exit $?
 ```bash
 #!/bin/sh
 cd "$(git rev-parse --show-toplevel)"
-./verify.sh --stage release
+./run-ci.sh --stage release
 exit $?
 ```
 

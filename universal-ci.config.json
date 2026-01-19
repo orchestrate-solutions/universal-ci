@@ -3,32 +3,32 @@
     {
       "name": "Test Shell Script - Python Fixture",
       "working_directory": "tests/fixtures/python_project",
-      "command": "../../../verify.sh"
+      "command": "../../../run-ci.sh"
     },
     {
       "name": "Test Shell Script - JS Fixture",
       "working_directory": "tests/fixtures/js_project",
-      "command": "../../../verify.sh"
+      "command": "../../../run-ci.sh"
     },
     {
       "name": "Test Shell Script - Multi-Stage Test",
       "working_directory": "tests/fixtures/multi_stage_project",
-      "command": "../../../verify.sh --stage test"
+      "command": "../../../run-ci.sh --stage test"
     },
     {
       "name": "Test Shell Script - Multi-Stage Release",
       "working_directory": "tests/fixtures/multi_stage_project",
-      "command": "../../../verify.sh --stage release"
+      "command": "../../../run-ci.sh --stage release"
     },
     {
       "name": "Test Shell Script - Help Output",
       "working_directory": ".",
-      "command": "./verify.sh --help | grep -q 'Universal CI Verifier'"
+      "command": "./run-ci.sh --help | grep -q 'Universal CI Verifier'"
     },
     {
       "name": "Test Shell Script - Missing Config Error",
       "working_directory": ".",
-      "command": "./verify.sh --config nonexistent.json 2>&1 | grep -q 'not found'"
+      "command": "./run-ci.sh --config nonexistent.json 2>&1 | grep -q 'not found'"
     },
     {
       "name": "Test Python Script Still Works",

@@ -19,8 +19,8 @@ class UniversalCITester:
     def __init__(self, repo_root: str):
         self.repo_root = Path(repo_root)
         self.fixtures_dir = self.repo_root / "tests" / "fixtures"
-        self.install_script = self.repo_root / "install.sh"
-        self.verify_script = self.repo_root / "verify.sh"
+        self.install_script = self.repo_root / "install-ci.sh"
+        self.verify_script = self.repo_root / "run-ci.sh"
 
         # Supported project types and their detection files
         self.project_types = {
@@ -69,7 +69,7 @@ class UniversalCITester:
                 continue
 
             # Test detection by checking for key files that should trigger detection
-            # This avoids running install.sh which executes commands
+            # This avoids running install-ci.sh which executes commands
             detected_type = None
 
             # Check for language-specific files
@@ -129,7 +129,7 @@ class UniversalCITester:
                 all_passed = False
                 continue
 
-            # For this test, we'll manually check what the install.sh would generate
+            # For this test, we'll manually check what the install-ci.sh would generate
             # by examining the detection logic, rather than running it
             # This avoids executing potentially failing commands
 
@@ -170,7 +170,7 @@ class UniversalCITester:
                 temp_fixture = Path(temp_dir) / fixture_name
                 shutil.copytree(fixture_path, temp_fixture)
 
-                # Run verify.sh --help to test basic functionality
+                # Run run-ci.sh --help to test basic functionality
                 cmd = ["bash", str(self.verify_script), "--help"]
                 exit_code, stdout, stderr = self.run_command(cmd, cwd=str(temp_fixture))
 
@@ -191,7 +191,7 @@ class UniversalCITester:
         return all_passed
 
     def test_task_parsing(self) -> bool:
-        """Test that verify.sh can parse tasks from config files."""
+        """Test that run-ci.sh can parse tasks from config files."""
         print("🧪 Testing task parsing...")
 
         all_passed = True
@@ -276,15 +276,15 @@ def main():
         repo_root = current_dir
     
     # Verify we're in the right place
-    install_script = repo_root / "install.sh"
-    verify_script = repo_root / "verify.sh"
+    install_script = repo_root / "install-ci.sh"
+    verify_script = repo_root / "run-ci.sh"
     
     if not install_script.exists():
-        print(f"❌ Error: install.sh not found at {install_script}")
+        print(f"❌ Error: install-ci.sh not found at {install_script}")
         sys.exit(1)
 
     if not verify_script.exists():
-        print(f"❌ Error: verify.sh not found at {verify_script}")
+        print(f"❌ Error: run-ci.sh not found at {verify_script}")
         sys.exit(1)
 
     # Run tests

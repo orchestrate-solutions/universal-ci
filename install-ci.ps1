@@ -1,5 +1,5 @@
 # Universal CI - One-Command Bootstrap for Windows
-# Usage: irm https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install-ci.ps1 | iex
 #
 # Or with options:
 #   $env:UCI_NO_HOOKS = "1"; irm ... | iex
@@ -23,7 +23,7 @@ param(
 
 $RepoUrl = "https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main"
 $ConfigFile = "universal-ci.config.json"
-$VerifyScript = "verify.ps1"
+$VerifyScript = "run-ci.ps1"
 
 # Support environment variables for piped execution
 if ($env:UCI_NO_HOOKS -eq "1") { $NoHooks = $true }
@@ -375,10 +375,10 @@ jobs:
       
       - name: Run Universal CI
         run: |
-          curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/verify.sh -o .verify.sh
-          chmod +x .verify.sh
-          ./.verify.sh
-          rm .verify.sh
+          curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/run-ci.sh -o .run-ci.sh
+          chmod +x .run-ci.sh
+          ./.run-ci.sh
+          rm .run-ci.sh
 '@
     
     $workflow | Set-Content "$workflowDir/ci.yml" -Encoding UTF8
@@ -401,7 +401,7 @@ RUN apk add --no-cache bash curl git jq make
 
 WORKDIR /app
 
-COPY verify.sh /usr/local/bin/uci
+COPY run-ci.sh /usr/local/bin/uci
 RUN chmod +x /usr/local/bin/uci
 
 ENTRYPOINT ["uci"]
@@ -455,10 +455,10 @@ function Setup-GitHooks {
 
 echo "🔍 Running Universal CI verification..."
 
-if [ -f "./verify.sh" ]; then
-    ./verify.sh
-elif [ -f "./verify.ps1" ]; then
-    pwsh -File ./verify.ps1
+if [ -f "./run-ci.sh" ]; then
+    ./run-ci.sh
+elif [ -f "./run-ci.ps1" ]; then
+    pwsh -File ./run-ci.ps1
 else
     echo "⚠️  verify script not found"
     exit 0
@@ -494,7 +494,7 @@ function Show-Help {
 Universal CI Bootstrap
 
 Usage:
-  irm https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install.ps1 | iex
+  irm https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install-ci.ps1 | iex
 
   # With options (set environment variables first):
   `$env:UCI_TYPE = "nodejs"; irm ... | iex
@@ -517,13 +517,13 @@ Environment Variables (for piped execution):
 
 Examples:
   # Basic install with auto-detection
-  irm .../install.ps1 | iex
+  irm .../install-ci.ps1 | iex
 
   # Force Node.js config
-  `$env:UCI_TYPE = "nodejs"; irm .../install.ps1 | iex
+  `$env:UCI_TYPE = "nodejs"; irm .../install-ci.ps1 | iex
 
   # Full setup with GitHub Actions
-  `$env:UCI_GITHUB_ACTIONS = "1"; irm .../install.ps1 | iex
+  `$env:UCI_GITHUB_ACTIONS = "1"; irm .../install-ci.ps1 | iex
 "@
 }
 
@@ -539,7 +539,7 @@ function Main {
     
     Write-Banner
     
-    # Step 1: Download verify.ps1
+    # Step 1: Download run-ci.ps1
     Write-Step "Downloading Universal CI..."
     try {
         Invoke-WebRequest -Uri "$RepoUrl/$VerifyScript" -OutFile $VerifyScript -UseBasicParsing
@@ -549,12 +549,12 @@ function Main {
         exit 1
     }
     
-    # Also download verify.sh for cross-platform hooks
+    # Also download run-ci.sh for cross-platform hooks
     try {
-        Invoke-WebRequest -Uri "$RepoUrl/verify.sh" -OutFile "verify.sh" -UseBasicParsing
-        Write-Success "Downloaded verify.sh (for cross-platform hooks)"
+        Invoke-WebRequest -Uri "$RepoUrl/run-ci.sh" -OutFile "run-ci.sh" -UseBasicParsing
+        Write-Success "Downloaded run-ci.sh (for cross-platform hooks)"
     } catch {
-        Write-Warn "Could not download verify.sh"
+        Write-Warn "Could not download run-ci.sh"
     }
     
     # Step 2: Detect project type
@@ -642,7 +642,7 @@ function Main {
     Write-Host "Next steps:"
     Write-Host "  1. Review $ConfigFile and customize tasks"
     Write-Host "  2. Run " -NoNewline
-    Write-Host ".\verify.ps1" -ForegroundColor Cyan -NoNewline
+    Write-Host ".\run-ci.ps1" -ForegroundColor Cyan -NoNewline
     Write-Host " to verify your project"
     Write-Host "  3. Commit and push - hooks will verify automatically"
     Write-Host ""

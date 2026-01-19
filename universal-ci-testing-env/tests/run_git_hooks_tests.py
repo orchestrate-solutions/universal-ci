@@ -31,7 +31,7 @@ def test_pre_commit_hook_creation():
         
         pre_commit_hook = hooks_dir / "pre-commit"
         pre_commit_content = """#!/bin/sh
-./verify.sh
+./run-ci.sh
 exit $?
 """
         pre_commit_hook.write_text(pre_commit_content)
@@ -64,7 +64,7 @@ def test_pre_push_hook_creation():
         
         pre_push_hook = hooks_dir / "pre-push"
         pre_push_content = """#!/bin/sh
-./verify.sh --stage release
+./run-ci.sh --stage release
 exit $?
 """
         pre_push_hook.write_text(pre_push_content)
@@ -106,7 +106,7 @@ def test_failing_task_blocks_commit():
         config_file.write_text(json.dumps(config, indent=2))
         
         # Create dummy verify script that uses config
-        verify_script = repo / "verify.sh"
+        verify_script = repo / "run-ci.sh"
         verify_script.write_text("""#!/bin/sh
 # Parse and execute the test task
 if grep -q '"command": "exit 1"' universal-ci.config.json; then
@@ -123,7 +123,7 @@ exit 0
         pre_commit = hooks_dir / "pre-commit"
         pre_commit.write_text("""#!/bin/sh
 cd "$(git rev-parse --show-toplevel)"
-./verify.sh --stage test
+./run-ci.sh --stage test
 exit $?
 """)
         pre_commit.chmod(0o755)
@@ -176,7 +176,7 @@ def test_passing_task_allows_commit():
         config_file.write_text(json.dumps(config, indent=2))
         
         # Create dummy verify script
-        verify_script = repo / "verify.sh"
+        verify_script = repo / "run-ci.sh"
         verify_script.write_text("""#!/bin/sh
 exit 0
 """)
@@ -189,7 +189,7 @@ exit 0
         pre_commit = hooks_dir / "pre-commit"
         pre_commit.write_text("""#!/bin/sh
 cd "$(git rev-parse --show-toplevel)"
-./verify.sh --stage test
+./run-ci.sh --stage test
 exit $?
 """)
         pre_commit.chmod(0o755)
@@ -298,7 +298,7 @@ def test_multiple_failing_tasks():
         config_file.write_text(json.dumps(config, indent=2))
         
         # Create verify script that simulates running all tasks
-        verify_script = repo / "verify.sh"
+        verify_script = repo / "run-ci.sh"
         verify_script.write_text("""#!/bin/sh
 # Simulate multiple tasks
 if grep -q '"command": "exit 1"' universal-ci.config.json; then
@@ -315,7 +315,7 @@ exit 0
         pre_commit = hooks_dir / "pre-commit"
         pre_commit.write_text("""#!/bin/sh
 cd "$(git rev-parse --show-toplevel)"
-./verify.sh --stage test
+./run-ci.sh --stage test
 exit $?
 """)
         pre_commit.chmod(0o755)

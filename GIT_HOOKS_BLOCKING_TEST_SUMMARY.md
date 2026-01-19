@@ -132,7 +132,7 @@ Each test follows this pattern:
 ```python
 1. Create isolated temporary git repository
 2. Write universal-ci.config.json with tasks
-3. Create verify.sh script
+3. Create run-ci.sh script
 4. Create pre-commit/pre-push hooks
 5. Stage files and attempt git operation
 6. Verify operation was blocked/allowed appropriately
@@ -153,7 +153,7 @@ Each test follows this pattern:
 │      }]                                                 │
 │    }                                                    │
 │                                                         │
-│ 2. Create pre-commit hook that runs verify.sh          │
+│ 2. Create pre-commit hook that runs run-ci.sh          │
 │                                                         │
 │ 3. Attempt: git commit -m "test"                       │
 │                                                         │

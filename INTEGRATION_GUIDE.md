@@ -62,7 +62,7 @@ jobs:
 
 ### Via Universal CI
 ```bash
-./verify.sh
+./run-ci.sh
 ```
 
 ## Implementation Examples
@@ -112,13 +112,13 @@ EOF
 mkdir -p .git/hooks
 cat > .git/hooks/pre-commit << 'EOF'
 #!/bin/sh
-./verify.sh
+./run-ci.sh
 exit $?
 EOF
 chmod +x .git/hooks/pre-commit
 
-# Copy verify.sh here
-cp ../verify.sh .
+# Copy run-ci.sh here
+cp ../run-ci.sh .
 
 # Try to commit
 echo "test" > file.txt
@@ -194,7 +194,7 @@ Add to your dashboards:
 ### Regular Verification
 
 Run these tests:
-- After modifying verify.sh
+- After modifying run-ci.sh
 - After updating hooks installation
 - In every CI pipeline run
 - Manually before major releases

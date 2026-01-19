@@ -8,36 +8,36 @@
 
 ```bash
 # macOS / Linux / WSL - Fully automated setup
-curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install.sh | sh
+curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install-ci.sh | sh
 
 # Windows PowerShell
-irm https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install-ci.ps1 | iex
 ```
 
 **That's it.** The installer will:
-1. ✅ Download the verification script
+1. ✅ Download the CI runner script
 2. ✅ Auto-detect your project type (Node, Python, Go, Rust, .NET, Java, Kotlin, Scala, Swift, C++, Dart, Ruby, PHP)
 3. ✅ Generate `universal-ci.config.json` with smart defaults
 4. ✅ Set up Git pre-push hooks
-5. ✅ Run initial verification
+5. ✅ Run initial CI verification
 
 ### Advanced Install Options
 
 ```bash
 # Skip prompts (fully automatic)
-curl -sL .../install.sh | sh -s -- -y
+curl -sL .../install-ci.sh | sh -s -- -y
 
 # Include GitHub Actions workflow
-curl -sL .../install.sh | sh -s -- --github-actions
+curl -sL .../install-ci.sh | sh -s -- --github-actions
 
 # Include Docker setup for isolated runs
-curl -sL .../install.sh | sh -s -- --docker
+curl -sL .../install-ci.sh | sh -s -- --docker
 
 # Force a specific project type
-curl -sL .../install.sh | sh -s -- --type nodejs
+curl -sL .../install-ci.sh | sh -s -- --type nodejs
 
 # Full setup (everything)
-curl -sL .../install.sh | sh -s -- -y --github-actions --docker
+curl -sL .../install-ci.sh | sh -s -- -y --github-actions --docker
 ```
 
 ---
@@ -120,7 +120,7 @@ After running the installer, you'll have a `universal-ci.config.json` like this:
 
 Run it locally:
 ```bash
-./verify.sh
+./run-ci.sh
 ```
 
 ---
@@ -130,32 +130,32 @@ Run it locally:
 ### One-Command Bootstrap (Recommended)
 ```bash
 # macOS / Linux / WSL
-curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install.sh | sh
+curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install-ci.sh | sh
 
 # Windows PowerShell
-irm https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install-ci.ps1 | iex
 ```
 
 ### Manual Download
 ```bash
 # macOS / Linux
-curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/verify.sh -o verify.sh && chmod +x verify.sh
+curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/run-ci.sh -o run-ci.sh && chmod +x run-ci.sh
 
 # Windows (PowerShell)
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/verify.ps1" -OutFile "verify.ps1"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/run-ci.ps1" -OutFile "run-ci.ps1"
 ```
 
 ### Clone Repository
 ```bash
 git clone https://github.com/orchestrate-solutions/universal-ci.git
 cd universal-ci
-./verify.sh  # or .\verify.ps1 on Windows
+./run-ci.sh  # or .\run-ci.ps1 on Windows
 ```
 
 ### Already have the script? Just init:
 ```bash
-./verify.sh --init          # Creates config for current project
-./verify.sh --init --type go  # Force specific project type
+./run-ci.sh --init          # Creates config for current project
+./run-ci.sh --init --type go  # Force specific project type
 ```
 
 ## 🚀 Quick Start
@@ -166,10 +166,10 @@ The one-liner above handles everything automatically. Or if you want to start ma
 ### 2. Run Locally
 ```bash
 # macOS / Linux
-./verify.sh
+./run-ci.sh
 
 # Windows
-.\verify.ps1
+.\run-ci.ps1
 ```
 
 ### 3. GitHub Actions Integration
@@ -184,9 +184,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run Universal CI
         run: |
-          curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/verify.sh -o verify.sh
-          chmod +x verify.sh
-          ./verify.sh
+          curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/run-ci.sh -o run-ci.sh
+          chmod +x run-ci.sh
+          ./run-ci.sh
 ```
 
 ### 4. Customize Configuration
@@ -374,19 +374,19 @@ List tasks as JSON and run only selected ones - perfect for AI automation:
 
 ```bash
 # List all tasks as JSON (AI reads and decides which to run)
-./verify.sh --list-tasks
+./run-ci.sh --list-tasks
 
 # Output:
 # {"tasks":[{"name":"Build","directory":".","command":"npm run build"},{"name":"Test","directory":".","command":"npm test"},...]}
 
 # Run only specific tasks (AI selects via JSON array)
-./verify.sh --select-tasks '["Build","Test"]'
+./run-ci.sh --select-tasks '["Build","Test"]'
 
 # Approve tasks requiring approval
-./verify.sh --stage release --approve-task "Deploy to Production"
+./run-ci.sh --stage release --approve-task "Deploy to Production"
 
 # Skip tasks without running them
-./verify.sh --skip-task "Slow Integration Tests"
+./run-ci.sh --skip-task "Slow Integration Tests"
 ```
 
 **Interactive CLI Commands:**
@@ -399,17 +399,17 @@ List tasks as JSON and run only selected ones - perfect for AI automation:
 **Example: AI-Driven Workflow**
 ```bash
 # AI gets list of available tasks
-tasks=$(./verify.sh --list-tasks | jq .tasks)
+tasks=$(./run-ci.sh --list-tasks | jq .tasks)
 
 # AI analyzes and decides which tasks to run
 # AI constructs JSON selection based on logic
 
 # AI executes only the selected tasks
-./verify.sh --select-tasks '["Lint","Test","Build"]'
+./run-ci.sh --select-tasks '["Lint","Test","Build"]'
 
 # If deploy task requires approval, AI requests it
-if ./verify.sh --stage release --list-tasks | jq '.tasks[] | select(.requires_approval == true)'; then
-  ./verify.sh --stage release --approve-task "Deploy" --approve-task "Notify"
+if ./run-ci.sh --stage release --list-tasks | jq '.tasks[] | select(.requires_approval == true)'; then
+  ./run-ci.sh --stage release --approve-task "Deploy" --approve-task "Notify"
 fi
 ```
 
@@ -419,10 +419,10 @@ fi
 
 ```bash
 # macOS / Linux
-./verify.sh [OPTIONS]
+./run-ci.sh [OPTIONS]
 
 # Windows  
-.\verify.ps1 [OPTIONS]
+.\run-ci.ps1 [OPTIONS]
 ```
 
 | Option | Description |
@@ -441,19 +441,19 @@ fi
 ### Examples
 ```bash
 # Initialize a new project
-./verify.sh --init
+./run-ci.sh --init
 
 # Run with default config
-./verify.sh
+./run-ci.sh
 
 # Run specific config
-./verify.sh --config my-project.json
+./run-ci.sh --config my-project.json
 
 # Run release tasks
-./verify.sh --stage release
+./run-ci.sh --stage release
 
 # Windows equivalent
-.\verify.ps1 -Config my-project.json -Stage release
+.\run-ci.ps1 -Config my-project.json -Stage release
 ```
 
 ---
@@ -462,10 +462,10 @@ fi
 
 | Script | Platform | Dependencies |
 |--------|----------|--------------|
-| `install.sh` | macOS, Linux, WSL | POSIX shell + curl |
-| `install.ps1` | Windows | PowerShell 5.1+ |
-| `verify.sh` | macOS, Linux, WSL | POSIX shell (sh/bash) |
-| `verify.ps1` | Windows, macOS*, Linux* | PowerShell 5.1+ |
+| `install-ci.sh` | macOS, Linux, WSL | POSIX shell + curl |
+| `install-ci.ps1` | Windows | PowerShell 5.1+ |
+| `run-ci.sh` | macOS, Linux, WSL | POSIX shell (sh/bash) |
+| `run-ci.ps1` | Windows, macOS*, Linux* | PowerShell 5.1+ |
 | `universal-ci-testing-env/verify.py` | Any | Python 3.8+ |
 
 *PowerShell Core required on macOS/Linux
@@ -481,7 +481,7 @@ The installer sets this up automatically, but you can also do it manually:
 cat > .git/hooks/pre-push << 'EOF'
 #!/bin/sh
 echo "🔍 Running Universal CI verification..."
-./verify.sh || exit 1
+./run-ci.sh || exit 1
 EOF
 
 chmod +x .git/hooks/pre-push
@@ -495,7 +495,7 @@ Run verification in an isolated container:
 
 ```bash
 # Use the installer to set up Docker
-curl -sL .../install.sh | sh -s -- --docker
+curl -sL .../install-ci.sh | sh -s -- --docker
 
 # Then run with Docker Compose
 docker-compose -f docker-compose.ci.yml run ci
@@ -523,7 +523,7 @@ The Docker setup creates:
 1. Fork the repository
 2. Create a feature branch
 3. Add tests for new functionality
-4. Ensure all tests pass: `./verify.sh`
+4. Ensure all tests pass: `./run-ci.sh`
 5. Submit a pull request
 
 ## 📄 License
