@@ -42,13 +42,15 @@ curl -sL .../install.sh | sh -s -- -y --github-actions --docker
 
 ---
 
-## What is Universal CI?
+## 🚀 Getting Started
+
+### What is Universal CI?
 
 Universal CI is a lightweight, configuration-driven CI/CD tool that runs the same way locally and in the cloud. Define your build, test, and deployment tasks in simple JSON configuration files, then execute them consistently across environments.
 
 **Zero dependencies.** Works on any system with a shell (macOS, Linux) or PowerShell (Windows).
 
-## ✨ Features
+### Why Universal CI?
 
 - **🪶 Zero Dependencies**: Pure shell script - no Python, Node, or runtime required
 - **🔧 Config-Driven**: Define tasks in `universal-ci.config.json` - no complex YAML
@@ -58,12 +60,75 @@ Universal CI is a lightweight, configuration-driven CI/CD tool that runs the sam
 - **🎯 Task-Based**: Each task specifies its working directory and command
 - **🔍 Smart Detection**: Auto-detects Node, Python, Go, Rust, .NET, Java, Ruby, PHP projects
 
-## 📦 Alternative Installation Methods
+### Supported Project Types
 
-### Already have the script? Just init:
+The installer automatically detects and configures:
+
+| Language | Files Detected | Package Manager | Tasks Generated |
+|----------|----------------|-----------------|-----------------|
+| **Node.js** | `package.json` | npm, pnpm, yarn, bun | install, test, lint, build |
+| **Python** | `pyproject.toml`, `requirements.txt` | pip, poetry, pipenv, uv | install, lint, test |
+| **Go** | `go.mod` | go modules | download, vet, test, build |
+| **Rust** | `Cargo.toml` | cargo | check, clippy, test, build |
+| **.NET** | `*.csproj`, `*.fsproj` | dotnet | restore, build, test |
+| **Java (Maven)** | `pom.xml` | maven | compile, test, package |
+| **Java (Gradle)** | `build.gradle*` | gradle | compile, test, build |
+| **Ruby** | `Gemfile` | bundler | install, rubocop, test |
+| **PHP** | `composer.json` | composer | install, phpstan, test |
+| **Makefile** | `Makefile` | make | build, test |
+| **Generic** | - | - | Hello World example |
+
+### Quick Example
+
+After running the installer, you'll have a `universal-ci.config.json` like this:
+
+```json
+{
+  "tasks": [
+    {
+      "name": "Install Dependencies",
+      "working_directory": ".",
+      "command": "npm ci",
+      "stage": "test"
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "npm test",
+      "stage": "test"
+    },
+    {
+      "name": "Lint",
+      "working_directory": ".",
+      "command": "npm run lint",
+      "stage": "test"
+    },
+    {
+      "name": "Build",
+      "working_directory": ".",
+      "command": "npm run build",
+      "stage": "release"
+    }
+  ]
+}
+```
+
+Run it locally:
 ```bash
-./verify.sh --init          # Creates config for current project
-./verify.sh --init --type go  # Force specific project type
+./verify.sh
+```
+
+---
+
+## 📦 Installation Methods
+
+### One-Command Bootstrap (Recommended)
+```bash
+# macOS / Linux / WSL
+curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install.sh | sh
+
+# Windows PowerShell
+irm https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install.ps1 | iex
 ```
 
 ### Manual Download
@@ -82,35 +147,16 @@ cd universal-ci
 ./verify.sh  # or .\verify.ps1 on Windows
 ```
 
+### Already have the script? Just init:
+```bash
+./verify.sh --init          # Creates config for current project
+./verify.sh --init --type go  # Force specific project type
+```
+
 ## 🚀 Quick Start
 
 ### 1. Run the Installer
-The one-liner above handles everything. Or if you want to start manually:
-
-### 2. Create Configuration
-Create `universal-ci.config.json` in your project root:
-
-```json
-{
-  "tasks": [
-    {
-      "name": "Install Dependencies",
-      "working_directory": ".",
-      "command": "npm install"
-    },
-    {
-      "name": "Run Tests",
-      "working_directory": ".",
-      "command": "npm test"
-    },
-    {
-      "name": "Build",
-      "working_directory": ".",
-      "command": "npm run build"
-    }
-  ]
-}
-```
+The one-liner above handles everything automatically. Or if you want to start manually:
 
 ### 2. Run Locally
 ```bash
@@ -137,6 +183,33 @@ jobs:
           chmod +x verify.sh
           ./verify.sh
 ```
+
+### 4. Customize Configuration
+Edit `universal-ci.config.json` to add your own tasks:
+
+```json
+{
+  "tasks": [
+    {
+      "name": "Install Dependencies",
+      "working_directory": ".",
+      "command": "npm install"
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "npm test"
+    },
+    {
+      "name": "Build",
+      "working_directory": ".",
+      "command": "npm run build"
+    }
+  ]
+}
+```
+
+---
 
 ## 📋 Configuration Schema
 
@@ -177,6 +250,8 @@ jobs:
 | `command` | ✅ | - | Shell command to run |
 | `stage` | ❌ | `"test"` | `"test"` or `"release"` |
 
+---
+
 ## 🔧 CLI Options
 
 ```bash
@@ -213,6 +288,8 @@ jobs:
 .\verify.ps1 -Config my-project.json -Stage release
 ```
 
+---
+
 ## 📁 Available Scripts
 
 | Script | Platform | Dependencies |
@@ -224,6 +301,8 @@ jobs:
 | `universal-ci-testing-env/verify.py` | Any | Python 3.8+ |
 
 *PowerShell Core required on macOS/Linux
+
+---
 
 ## 🎬 Local Testing with Git Hooks
 
@@ -240,6 +319,8 @@ EOF
 chmod +x .git/hooks/pre-push
 ```
 
+---
+
 ## 🐳 Docker Support
 
 Run verification in an isolated container:
@@ -252,6 +333,12 @@ curl -sL .../install.sh | sh -s -- --docker
 docker-compose -f docker-compose.ci.yml run ci
 ```
 
+The Docker setup creates:
+- `Dockerfile.ci`: Alpine-based container with basic tools
+- `docker-compose.ci.yml`: Compose file for easy execution
+
+---
+
 ## 🌟 Philosophy
 
 **Simple, Predictable, Everywhere**
@@ -260,6 +347,8 @@ docker-compose -f docker-compose.ci.yml run ci
 - **No Dependencies**: Works with any language, framework, or tooling
 - **No Lock-in**: Use it locally, in GitHub Actions, or anywhere else
 - **No Complexity**: JSON configuration that anyone can understand
+
+---
 
 ## 🤝 Contributing
 
