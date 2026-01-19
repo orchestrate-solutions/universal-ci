@@ -164,21 +164,21 @@ detect_project_type() {
         return 0
     fi
     
-    # Java (Gradle)
-    if [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then
-        echo "java-gradle"
-        return 0
-    fi
-    
-    # Kotlin
-    if [ -f "build.gradle.kts" ] && grep -q "kotlin" build.gradle.kts 2>/dev/null || [ -d "src/main/kotlin" ]; then
+    # Kotlin (before Java Gradle since Kotlin uses gradle with kotlin plugin)
+    if [ -d "src/main/kotlin" ] || ([ -f "build.gradle.kts" ] && grep -q "kotlin" build.gradle.kts 2>/dev/null); then
         echo "kotlin"
         return 0
     fi
     
-    # Scala
-    if [ -f "build.sbt" ] || ([ -f "build.gradle" ] && grep -q "scala" build.gradle 2>/dev/null) || ls src/main/scala/*.scala 1>/dev/null 2>&1; then
+    # Scala (before Java Gradle since Scala can use gradle)
+    if [ -f "build.sbt" ] || [ -d "src/main/scala" ] || ([ -f "build.gradle" ] && grep -q "scala" build.gradle 2>/dev/null); then
         echo "scala"
+        return 0
+    fi
+    
+    # Java (Gradle)
+    if [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then
+        echo "java-gradle"
         return 0
     fi
     

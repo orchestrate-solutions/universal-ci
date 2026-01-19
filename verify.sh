@@ -266,9 +266,9 @@ detect_project_type() {
     if [ -f "Cargo.toml" ]; then echo "rust"; return 0; fi
     if ls *.csproj 1>/dev/null 2>&1 || ls *.fsproj 1>/dev/null 2>&1; then echo "dotnet"; return 0; fi
     if [ -f "pom.xml" ]; then echo "java-maven"; return 0; fi
-    if [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then echo "java-gradle"; return 0; fi
     if [ -d "src/main/kotlin" ]; then echo "kotlin"; return 0; fi
     if [ -f "build.sbt" ] || [ -d "src/main/scala" ]; then echo "scala"; return 0; fi
+    if [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then echo "java-gradle"; return 0; fi
     if [ -f "Package.swift" ] || [ -d "Sources" ]; then echo "swift"; return 0; fi
     if [ -f "CMakeLists.txt" ] || ls *.cpp 1>/dev/null 2>&1 || ls *.cc 1>/dev/null 2>&1; then echo "cpp"; return 0; fi
     if [ -f "pubspec.yaml" ] || ls *.dart 1>/dev/null 2>&1; then echo "dart"; return 0; fi
