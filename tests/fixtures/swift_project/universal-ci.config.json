@@ -1,0 +1,22 @@
+{
+  "tasks": [
+    {
+      "name": "Build",
+      "working_directory": ".",
+      "command": "swift build",
+      "stage": "test"
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "swift test",
+      "stage": "test"
+    },
+    {
+      "name": "Build Release",
+      "working_directory": ".",
+      "command": "swift build --configuration release",
+      "stage": "release"
+    }
+  ]
+}
