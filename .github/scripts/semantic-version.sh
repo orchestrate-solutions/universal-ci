@@ -91,9 +91,30 @@ read_config_value() {
 }
 
 # Get last tag, fallback to first commit
+# Updated to detect "release commits" (chore: release v...) in case local tags are missing
 get_last_tag() {
-  local tag=$(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD 2>/dev/null || echo "")
-  echo "$tag"
+  # 1. Find the last commit that looks like a release (CodeUChain/Semantic Release pattern)
+  # Looks for: "chore: release v", "release: v", "chore(release): v"
+  local last_release_commit=$(git log --grep="^chore: release v" --grep="^release: v" --grep="^chore(release): v" -n 1 --format="%H")
+  
+  # 2. Find the last real git tag
+  local last_git_tag=$(git describe --tags --abbrev=0 2>/dev/null)
+  
+  # 3. Determine which is more recent (closest to HEAD)
+  if [[ -n "$last_release_commit" ]]; then
+    # If we have a release commit, filtering by it is safer than tags which might remain locally even if history changed
+    # or tags might be missing locally if not pulled
+    echo "$last_release_commit"
+    return
+  fi
+
+  if [[ -n "$last_git_tag" ]]; then
+    echo "$last_git_tag"
+    return
+  fi
+  
+  # Fallback: First commit
+  git rev-list --max-parents=0 HEAD 2>/dev/null || echo ""
 }
 
 # Get commits since last tag
