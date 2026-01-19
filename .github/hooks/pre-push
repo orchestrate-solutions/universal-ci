@@ -75,6 +75,19 @@ read_config_bool() {
   echo "$value"
 }
 
+# Check if there are commits since last tag
+has_commits_to_release() {
+  local last_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+  
+  if [[ -z "$last_tag" ]]; then
+    # No tags yet, check if there are any commits
+    [[ -n "$(git rev-list HEAD 2>/dev/null)" ]]
+  else
+    # Check if there are commits since last tag
+    [[ -n "$(git log "${last_tag}..HEAD" 2>/dev/null)" ]]
+  fi
+}
+
 # Read all refs from stdin to pass to auto-push if needed
 # Format: <local_ref> <local_oid> <remote_ref> <remote_oid>
 declare -a PUSH_REFS
