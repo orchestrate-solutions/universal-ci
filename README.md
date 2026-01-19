@@ -4,6 +4,46 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
+## ⚡ One-Command Setup
+
+```bash
+# macOS / Linux / WSL - Fully automated setup
+curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install.sh | sh
+
+# Windows PowerShell
+irm https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install.ps1 | iex
+```
+
+**That's it.** The installer will:
+1. ✅ Download the verification script
+2. ✅ Auto-detect your project type (Node, Python, Go, Rust, .NET, Java, Ruby, PHP)
+3. ✅ Generate `universal-ci.config.json` with smart defaults
+4. ✅ Set up Git pre-push hooks
+5. ✅ Run initial verification
+
+### Advanced Install Options
+
+```bash
+# Skip prompts (fully automatic)
+curl -sL .../install.sh | sh -s -- -y
+
+# Include GitHub Actions workflow
+curl -sL .../install.sh | sh -s -- --github-actions
+
+# Include Docker setup for isolated runs
+curl -sL .../install.sh | sh -s -- --docker
+
+# Force a specific project type
+curl -sL .../install.sh | sh -s -- --type nodejs
+
+# Full setup (everything)
+curl -sL .../install.sh | sh -s -- -y --github-actions --docker
+```
+
+---
+
+## What is Universal CI?
+
 Universal CI is a lightweight, configuration-driven CI/CD tool that runs the same way locally and in the cloud. Define your build, test, and deployment tasks in simple JSON configuration files, then execute them consistently across environments.
 
 **Zero dependencies.** Works on any system with a shell (macOS, Linux) or PowerShell (Windows).
@@ -16,10 +56,17 @@ Universal CI is a lightweight, configuration-driven CI/CD tool that runs the sam
 - **📦 Multi-Stage**: Separate `test` and `release` stage configurations
 - **🌍 Cross-Platform**: Shell script for macOS/Linux, PowerShell for Windows
 - **🎯 Task-Based**: Each task specifies its working directory and command
+- **🔍 Smart Detection**: Auto-detects Node, Python, Go, Rust, .NET, Java, Ruby, PHP projects
 
-## 📦 Installation
+## 📦 Alternative Installation Methods
 
-### Quick Start (One-liner)
+### Already have the script? Just init:
+```bash
+./verify.sh --init          # Creates config for current project
+./verify.sh --init --type go  # Force specific project type
+```
+
+### Manual Download
 ```bash
 # macOS / Linux
 curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/verify.sh -o verify.sh && chmod +x verify.sh
@@ -37,7 +84,10 @@ cd universal-ci
 
 ## 🚀 Quick Start
 
-### 1. Create Configuration
+### 1. Run the Installer
+The one-liner above handles everything. Or if you want to start manually:
+
+### 2. Create Configuration
 Create `universal-ci.config.json` in your project root:
 
 ```json
@@ -139,12 +189,17 @@ jobs:
 
 | Option | Description |
 |--------|-------------|
+| `--init` | Initialize config for current project (auto-detect type) |
 | `--config <path>` | Path to config file (default: `universal-ci.config.json`) |
 | `--stage <stage>` | Stage to run: `test` or `release` (default: `test`) |
+| `--type <type>` | Force project type for `--init` |
 | `--help` | Show help message |
 
 ### Examples
 ```bash
+# Initialize a new project
+./verify.sh --init
+
 # Run with default config
 ./verify.sh
 
@@ -162,6 +217,8 @@ jobs:
 
 | Script | Platform | Dependencies |
 |--------|----------|--------------|
+| `install.sh` | macOS, Linux, WSL | POSIX shell + curl |
+| `install.ps1` | Windows | PowerShell 5.1+ |
 | `verify.sh` | macOS, Linux, WSL | POSIX shell (sh/bash) |
 | `verify.ps1` | Windows, macOS*, Linux* | PowerShell 5.1+ |
 | `universal-ci-testing-env/verify.py` | Any | Python 3.8+ |
@@ -170,7 +227,7 @@ jobs:
 
 ## 🎬 Local Testing with Git Hooks
 
-Add a pre-push hook to verify before every push:
+The installer sets this up automatically, but you can also do it manually:
 
 ```bash
 # Create hook
@@ -181,6 +238,18 @@ echo "🔍 Running Universal CI verification..."
 EOF
 
 chmod +x .git/hooks/pre-push
+```
+
+## 🐳 Docker Support
+
+Run verification in an isolated container:
+
+```bash
+# Use the installer to set up Docker
+curl -sL .../install.sh | sh -s -- --docker
+
+# Then run with Docker Compose
+docker-compose -f docker-compose.ci.yml run ci
 ```
 
 ## 🌟 Philosophy
