@@ -75,127 +75,152 @@ read_config_bool() {
   echo "$value"
 }
 
-# Check if there are commits since last tag
-has_commits_to_release() {
-  local last_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-  
-  if [[ -z "$last_tag" ]]; then
-    # No tags yet, check if there are any commits
-    [[ -n "$(git rev-list HEAD 2>/dev/null)" ]]
-  else
-    # Check if there are commits since last tag
-    [[ -n "$(git log "${last_tag}..HEAD" 2>/dev/null)" ]]
-  fi
-}
+# Read all refs from stdin to pass to auto-push if needed
+# Format: <local_ref> <local_oid> <remote_ref> <remote_oid>
+declare -a PUSH_REFS
+while read -r line; do
+  PUSH_REFS+=("$line")
+done
 
-################################################################################
-# Main Hook Logic
-################################################################################
-
-# Check if semantic versioning is enabled
-SEMVER_ENABLED=$(read_config_bool "semver.enabled" "true")
-AUTO_UPDATE=$(read_config_bool "semver.auto_update_version" "true")
-REQUIRE_BREAKING_CONFIRM=$(read_config_bool "semver.require_breaking_change_confirmation" "true")
-
-if [[ "$SEMVER_ENABLED" != "true" ]]; then
-  # Semantic versioning is disabled, skip
-  exit 0
-fi
-
-# Check if scripts exist
-if [[ ! -f "$SEMVER_SCRIPT" ]]; then
-  log_warn "semantic-version.sh not found, skipping semantic versioning"
-  exit 0
-fi
-
-# Check if there are commits to analyze
+# Check if there are commits to release
 if ! has_commits_to_release; then
   log_info "No commits to release, skipping semantic versioning"
-  exit 0
-fi
-
-log_info "Analyzing commits for semantic versioning..."
-
-# Analyze commits
-if ! ANALYSIS=$("$SEMVER_SCRIPT" --analyze 2>/dev/null); then
-  log_error "Failed to analyze commits"
-  exit 1
-fi
-
-# Parse JSON response (portable sed-based parsing)
-BUMP_TYPE=$(echo "$ANALYSIS" | sed -n 's/.*"bump_type"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-BREAKING_COUNT=$(echo "$ANALYSIS" | sed -n 's/.*"breaking"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p')
-FEATURE_COUNT=$(echo "$ANALYSIS" | sed -n 's/.*"features"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p')
-FIX_COUNT=$(echo "$ANALYSIS" | sed -n 's/.*"fixes"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p')
-
-log_info "Found: $FEATURE_COUNT features, $FIX_COUNT fixes, $BREAKING_COUNT breaking changes"
-log_success "Suggested version bump: ${YELLOW}${BUMP_TYPE}${NC}"
-
-# If breaking changes detected, require user confirmation
-if [[ $BREAKING_COUNT -gt 0 && "$REQUIRE_BREAKING_CONFIRM" == "true" ]]; then
-  log_warn "Breaking changes detected!"
-  echo ""
+  # Continue to verification
+else
+  # Semantic Versioning Logic
+  # -------------------------
   
-  # Interactive breaking change confirmation
-  while true; do
-    read -p "$(echo -e ${BLUE}Confirm breaking changes? [yes/no]${NC}: )" confirm
-    confirm=$(echo "$confirm" | tr '[:upper:]' '[:lower:]')
+  # Check if semantic versioning is enabled
+  SEMVER_ENABLED=$(read_config_bool "semver.enabled" "true")
+  
+  if [[ "$SEMVER_ENABLED" == "true" && -f "$SEMVER_SCRIPT" ]]; then
+    log_info "Analyzing commits for semantic versioning..."
     
-    if [[ "$confirm" == "yes" ]]; then
-      log_success "Breaking change confirmed"
-      break
-    elif [[ "$confirm" == "no" ]]; then
-      log_error "Push cancelled - breaking changes not confirmed"
+    # Analyze commits
+    if ! ANALYSIS=$("$SEMVER_SCRIPT" --analyze 2>/dev/null); then
+      log_error "Failed to analyze commits"
       exit 1
-    else
-      log_error "Please respond with 'yes' or 'no'"
     fi
-  done
+    
+    # Parse JSON response
+    BUMP_TYPE=$(echo "$ANALYSIS" | sed -n 's/.*"bump_type"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+    BREAKING_COUNT=$(echo "$ANALYSIS" | sed -n 's/.*"breaking"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p')
+    FEATURE_COUNT=$(echo "$ANALYSIS" | sed -n 's/.*"features"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p')
+    
+    log_info "Found: $FEATURE_COUNT features, $BREAKING_COUNT breaking changes"
+    log_success "Suggested version bump: ${YELLOW}${BUMP_TYPE}${NC}"
+    
+    # Breaking change confirmation
+    REQUIRE_BREAKING_CONFIRM=$(read_config_bool "semver.require_breaking_change_confirmation" "true")
+    if [[ $BREAKING_COUNT -gt 0 && "$REQUIRE_BREAKING_CONFIRM" == "true" ]]; then
+      log_warn "Breaking changes detected!"
+      echo ""
+      while true; do
+        read -p "$(echo -e ${BLUE}Confirm breaking changes? [yes/no]${NC}: )" confirm < /dev/tty
+        confirm=$(echo "$confirm" | tr '[:upper:]' '[:lower:]')
+        if [[ "$confirm" == "yes" ]]; then break;
+        elif [[ "$confirm" == "no" ]]; then log_error "Push cancelled"; exit 1;
+        fi
+      done
+    fi
+    
+    # Store bump info for later (after verification)
+    SHOULD_BUMP=true
+  fi
 fi
 
-# Auto-update version if enabled
-if [[ "$AUTO_UPDATE" == "true" ]]; then
-  if [[ -f "$VERSION_FILE" && -f "$BUMP_SCRIPT" ]]; then
-    
-    # Check if we've already bumped the version in the latest commit to avoid infinite loop
-    # If the last commit message starts with "chore: release", we assume it's our auto-bump
+# -------------------------
+# 1. Run Verification First
+# -------------------------
+# We verify BEFORE bumping to ensure we don't tag broken code
+
+echo "🔍 Running Universal CI verification..."
+
+if [ -f "${REPO_ROOT}/run-ci.sh" ]; then
+    "${REPO_ROOT}/run-ci.sh"
+elif command -v curl >/dev/null 2>&1; then
+    curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/run-ci.sh | sh
+else
+    echo "⚠️  run-ci.sh not found and curl not available"
+    exit 0
+fi
+
+exit_code=$?
+
+if [ $exit_code -ne 0 ]; then
+    echo ""
+    echo "❌ Verification failed. Push blocked."
+    echo "   Fix the issues above and try again."
+    exit 1
+fi
+
+echo "✅ Verification passed."
+
+# -------------------------
+# 2. Bump & Auto-Push
+# -------------------------
+
+if [[ "$SHOULD_BUMP" == "true" ]]; then
+  AUTO_UPDATE=$(read_config_bool "semver.auto_update_version" "true")
+  
+  if [[ "$AUTO_UPDATE" == "true" && -f "$VERSION_FILE" && -f "$BUMP_SCRIPT" ]]; then
+  
+    # Check if last commit was already a release (avoid loop)
     last_msg=$(git log -1 --pretty=%B)
     if [[ "$last_msg" == chore:\ release\ v* ]]; then
-      log_info "Version bump already committed. Proceeding with push."
+      log_info "Version bump already committed. Proceeding with push..."
+      exit 0
+    fi
+    
+    log_info "Auto-updating VERSION to $BUMP_TYPE bump..."
+    
+    # Run bump
+    BUMP_OUTPUT=$("$BUMP_SCRIPT" "$BUMP_TYPE")
+    if [[ $? -eq 0 ]]; then
+      NEW_VERSION=$(head -n 1 "$VERSION_FILE")
+      log_success "Updated VERSION to v${NEW_VERSION}"
+      
+      # Commit
+      git add "$VERSION_FILE" "$CHANGELOG_FILE" package.json 2>/dev/null || true
+      git commit -m "chore: release v${NEW_VERSION} [skip ci]" --no-verify >/dev/null 2>&1
+      
+      log_success "Committed release v${NEW_VERSION}"
+      
+      # Auto-Push
+      # We construct the push command based on what the user originally requested
+      # $1 is remote name, $2 is remote URL
+      REMOTE_NAME="$1"
+      
+      if [[ -z "$REMOTE_NAME" ]]; then REMOTE_NAME="origin"; fi
+      
+      echo "🚀 Auto-pushing to $REMOTE_NAME..."
+      
+      # Push each ref requested
+      for ref_line in "${PUSH_REFS[@]}"; do
+         # line is: local_ref local_sha remote_ref remote_sha
+         # We want to push HEAD to remote_ref
+         parts=($ref_line)
+         remote_ref="${parts[2]}"
+         
+         if [[ -n "$remote_ref" ]]; then
+           log_info "Pushing HEAD -> $remote_ref"
+           git push --no-verify "$REMOTE_NAME" "HEAD:$remote_ref"
+         fi
+      done
+      
+      echo ""
+      log_warn "---------------------------------------------------------------"
+      log_warn "✅ AUTOMATION COMPLETE: Version bumped & pushed."
+      log_warn "ℹ️  The original push command will now 'fail' because it was"
+      log_warn "   superseded by the auto-push. This is normal."
+      log_warn "---------------------------------------------------------------"
+      
+      exit 1 # Block original push (it's stale now)
     else
-      log_info "Auto-updating VERSION to $BUMP_TYPE bump..."
-      
-      # Run bump-version with detected bump type
-      # Capture output to get the new version number
-      BUMP_OUTPUT=$("$BUMP_SCRIPT" "$BUMP_TYPE")
-      EXIT_CODE=$?
-      
-      if [[ $EXIT_CODE -eq 0 ]]; then
-        # Extract new version (simple grep from the output or read file)
-        NEW_VERSION=$(head -n 1 "$VERSION_FILE")
-        
-        log_success "Updated VERSION to v${NEW_VERSION}"
-        
-        # Commit the version bump
-        git add "$VERSION_FILE" "$CHANGELOG_FILE" package.json 2>/dev/null || true
-        git commit -m "chore: release v${NEW_VERSION} [skip ci]" --no-verify >/dev/null 2>&1
-        
-        log_warn "---------------------------------------------------------"
-        log_warn "🚀 Version bumped and committed: v${NEW_VERSION}"
-        log_warn "---------------------------------------------------------"
-        log_info "The push was intercepted to include the version update."
-        log_info "Please run 'git push' again used to publish this release."
-        log_warn "---------------------------------------------------------"
-        
-        exit 1 # Intentionally fail push to let user re-push with new commit
-      else
-        log_error "Failed to update VERSION"
-        exit 1
-      fi
+      log_error "Failed to update version block"
+      exit 1
     fi
   fi
 fi
 
-echo ""
-log_success "Pre-push verification complete - proceeding with push"
 exit 0
