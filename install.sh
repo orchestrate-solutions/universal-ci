@@ -170,6 +170,36 @@ detect_project_type() {
         return 0
     fi
     
+    # Kotlin
+    if [ -f "build.gradle.kts" ] && grep -q "kotlin" build.gradle.kts 2>/dev/null || [ -d "src/main/kotlin" ]; then
+        echo "kotlin"
+        return 0
+    fi
+    
+    # Scala
+    if [ -f "build.sbt" ] || ([ -f "build.gradle" ] && grep -q "scala" build.gradle 2>/dev/null) || ls src/main/scala/*.scala 1>/dev/null 2>&1; then
+        echo "scala"
+        return 0
+    fi
+    
+    # Swift
+    if [ -f "Package.swift" ] || ([ -d "Sources" ] && ls Sources/*.swift 1>/dev/null 2>&1); then
+        echo "swift"
+        return 0
+    fi
+    
+    # C++
+    if [ -f "CMakeLists.txt" ] || ls *.cpp 1>/dev/null 2>&1 || ls *.cc 1>/dev/null 2>&1; then
+        echo "cpp"
+        return 0
+    fi
+    
+    # Dart
+    if [ -f "pubspec.yaml" ] || ls *.dart 1>/dev/null 2>&1; then
+        echo "dart"
+        return 0
+    fi
+    
     # Ruby
     if [ -f "Gemfile" ]; then
         echo "ruby"
@@ -522,6 +552,147 @@ generate_java_gradle_config() {
 EOF
 }
 
+generate_kotlin_config() {
+    cat << 'EOF'
+{
+  "tasks": [
+    {
+      "name": "Build",
+      "working_directory": ".",
+      "command": "./gradlew build || gradlew build",
+      "stage": "test"
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "./gradlew test || gradlew test",
+      "stage": "test"
+    },
+    {
+      "name": "Assemble",
+      "working_directory": ".",
+      "command": "./gradlew assemble || gradlew assemble",
+      "stage": "release"
+    }
+  ]
+}
+EOF
+}
+
+generate_scala_config() {
+    cat << 'EOF'
+{
+  "tasks": [
+    {
+      "name": "Compile",
+      "working_directory": ".",
+      "command": "sbt compile || ./gradlew compileScala || gradlew compileScala",
+      "stage": "test"
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "sbt test || ./gradlew test || gradlew test",
+      "stage": "test"
+    },
+    {
+      "name": "Package",
+      "working_directory": ".",
+      "command": "sbt package || ./gradlew assemble || gradlew assemble",
+      "stage": "release"
+    }
+  ]
+}
+EOF
+}
+
+generate_swift_config() {
+    cat << 'EOF'
+{
+  "tasks": [
+    {
+      "name": "Build",
+      "working_directory": ".",
+      "command": "swift build",
+      "stage": "test"
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "swift test",
+      "stage": "test"
+    },
+    {
+      "name": "Build Release",
+      "working_directory": ".",
+      "command": "swift build --configuration release",
+      "stage": "release"
+    }
+  ]
+}
+EOF
+}
+
+generate_cpp_config() {
+    cat << 'EOF'
+{
+  "tasks": [
+    {
+      "name": "Configure",
+      "working_directory": ".",
+      "command": "mkdir -p build && cd build && cmake .. || echo 'CMake not found'",
+      "stage": "test"
+    },
+    {
+      "name": "Build",
+      "working_directory": ".",
+      "command": "cd build && make || make",
+      "stage": "test"
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "cd build && ctest || make test || echo 'No tests configured'",
+      "stage": "test"
+    }
+  ]
+}
+EOF
+}
+
+generate_dart_config() {
+    cat << 'EOF'
+{
+  "tasks": [
+    {
+      "name": "Get Dependencies",
+      "working_directory": ".",
+      "command": "dart pub get",
+      "stage": "test"
+    },
+    {
+      "name": "Analyze",
+      "working_directory": ".",
+      "command": "dart analyze",
+      "stage": "test"
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "dart test",
+      "stage": "test"
+    },
+    {
+      "name": "Build",
+      "working_directory": ".",
+      "command": "dart compile exe bin/main.dart -o bin/main || echo 'No executable to build'",
+      "stage": "release"
+    }
+  ]
+}
+EOF
+}
+
 generate_ruby_config() {
     cat << 'EOF'
 {
@@ -644,6 +815,11 @@ generate_config() {
         dotnet)      generate_dotnet_config ;;
         java-maven)  generate_java_maven_config ;;
         java-gradle) generate_java_gradle_config ;;
+        kotlin)      generate_kotlin_config ;;
+        scala)       generate_scala_config ;;
+        swift)       generate_swift_config ;;
+        cpp)         generate_cpp_config ;;
+        dart)        generate_dart_config ;;
         ruby)        generate_ruby_config ;;
         php)         generate_php_config ;;
         make)        generate_make_config ;;
@@ -897,6 +1073,11 @@ main() {
         dotnet)      friendly_name=".NET" ;;
         java-maven)  friendly_name="Java (Maven)" ;;
         java-gradle) friendly_name="Java (Gradle)" ;;
+        kotlin)      friendly_name="Kotlin" ;;
+        scala)       friendly_name="Scala" ;;
+        swift)       friendly_name="Swift" ;;
+        cpp)         friendly_name="C++" ;;
+        dart)        friendly_name="Dart" ;;
         ruby)        friendly_name="Ruby" ;;
         php)         friendly_name="PHP" ;;
         make)        friendly_name="Makefile" ;;

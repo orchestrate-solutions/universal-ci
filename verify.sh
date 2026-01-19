@@ -267,6 +267,11 @@ detect_project_type() {
     if ls *.csproj 1>/dev/null 2>&1 || ls *.fsproj 1>/dev/null 2>&1; then echo "dotnet"; return 0; fi
     if [ -f "pom.xml" ]; then echo "java-maven"; return 0; fi
     if [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then echo "java-gradle"; return 0; fi
+    if [ -d "src/main/kotlin" ]; then echo "kotlin"; return 0; fi
+    if [ -f "build.sbt" ] || [ -d "src/main/scala" ]; then echo "scala"; return 0; fi
+    if [ -f "Package.swift" ] || [ -d "Sources" ]; then echo "swift"; return 0; fi
+    if [ -f "CMakeLists.txt" ] || ls *.cpp 1>/dev/null 2>&1 || ls *.cc 1>/dev/null 2>&1; then echo "cpp"; return 0; fi
+    if [ -f "pubspec.yaml" ] || ls *.dart 1>/dev/null 2>&1; then echo "dart"; return 0; fi
     if [ -f "Gemfile" ]; then echo "ruby"; return 0; fi
     if [ -f "composer.json" ]; then echo "php"; return 0; fi
     if [ -f "Makefile" ]; then echo "make"; return 0; fi
@@ -335,6 +340,21 @@ generate_config() {
         java-gradle)
             echo '{"tasks":[{"name":"Compile","working_directory":".","command":"./gradlew compileJava","stage":"test"},{"name":"Test","working_directory":".","command":"./gradlew test","stage":"test"},{"name":"Build","working_directory":".","command":"./gradlew build -x test","stage":"release"}]}'
             ;;
+        kotlin)
+            echo '{"tasks":[{"name":"Build","working_directory":".","command":"./gradlew build || gradlew build","stage":"test"},{"name":"Test","working_directory":".","command":"./gradlew test || gradlew test","stage":"test"},{"name":"Assemble","working_directory":".","command":"./gradlew assemble || gradlew assemble","stage":"release"}]}'
+            ;;
+        scala)
+            echo '{"tasks":[{"name":"Compile","working_directory":".","command":"sbt compile || ./gradlew compileScala || gradlew compileScala","stage":"test"},{"name":"Test","working_directory":".","command":"sbt test || ./gradlew test || gradlew test","stage":"test"},{"name":"Package","working_directory":".","command":"sbt package || ./gradlew assemble || gradlew assemble","stage":"release"}]}'
+            ;;
+        swift)
+            echo '{"tasks":[{"name":"Build","working_directory":".","command":"swift build","stage":"test"},{"name":"Test","working_directory":".","command":"swift test","stage":"test"},{"name":"Release","working_directory":".","command":"swift build --configuration release","stage":"release"}]}'
+            ;;
+        cpp)
+            echo '{"tasks":[{"name":"Configure","working_directory":".","command":"mkdir -p build && cd build && cmake .. || echo CMake not found","stage":"test"},{"name":"Build","working_directory":".","command":"cd build && make || make","stage":"test"},{"name":"Test","working_directory":".","command":"cd build && ctest || make test || echo No tests","stage":"test"}]}'
+            ;;
+        dart)
+            echo '{"tasks":[{"name":"Get","working_directory":".","command":"dart pub get","stage":"test"},{"name":"Analyze","working_directory":".","command":"dart analyze","stage":"test"},{"name":"Test","working_directory":".","command":"dart test","stage":"test"},{"name":"Build","working_directory":".","command":"dart compile exe bin/main.dart -o bin/main || echo No executable","stage":"release"}]}'
+            ;;
         ruby)
             echo '{"tasks":[{"name":"Install","working_directory":".","command":"bundle install","stage":"test"},{"name":"Test","working_directory":".","command":"bundle exec rspec || bundle exec rake test","stage":"test"}]}'
             ;;
@@ -369,6 +389,11 @@ run_init() {
         dotnet)      friendly=".NET" ;;
         java-maven)  friendly="Java (Maven)" ;;
         java-gradle) friendly="Java (Gradle)" ;;
+        kotlin)      friendly="Kotlin" ;;
+        scala)       friendly="Scala" ;;
+        swift)       friendly="Swift" ;;
+        cpp)         friendly="C++" ;;
+        dart)        friendly="Dart" ;;
         ruby)        friendly="Ruby" ;;
         php)         friendly="PHP" ;;
         make)        friendly="Makefile" ;;
