@@ -35,5 +35,10 @@
       "working_directory": "tests/fixtures/python_project",
       "command": "python3 ../../../universal-ci-testing-env/verify.py"
     }
-  ]
+  ],
+  "semver": {
+    "enabled": true,
+    "auto_update_version": true,
+    "require_breaking_change_confirmation": true
+  }
 }
