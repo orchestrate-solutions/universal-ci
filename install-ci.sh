@@ -953,60 +953,15 @@ setup_git_hooks() {
     fi
     
     # Pre-push hook with semantic versioning
-    cat > .git/hooks/pre-push << 'HOOK'
-#!/bin/sh
-# Universal CI Pre-Push Hook with Semantic Versioning
-# 1. Analyzes commits for semantic version bump
-# 2. Prompts for breaking changes if needed
-# 3. Auto-updates VERSION and CHANGELOG.md
-# 4. Runs full verification
-
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-SEMVER_SCRIPT="${REPO_ROOT}/.github/scripts/semantic-version.sh"
-CONFIG_FILE="${REPO_ROOT}/universal-ci.config.json"
-
-# Check if semantic versioning is enabled in config
-if [ -f "$CONFIG_FILE" ]; then
-    # Simple grep to check if semver is enabled
-    if grep -q '"semver"' "$CONFIG_FILE" 2>/dev/null; then
-        if grep -q '"enabled"[[:space:]]*:[[:space:]]*false' "$CONFIG_FILE" 2>/dev/null; then
-            # Semantic versioning disabled
-            :
-        elif [ -f "$SEMVER_SCRIPT" ]; then
-            echo "🔍 Analyzing commits for semantic versioning..."
-            
-            # Run semantic version analysis
-            if "$SEMVER_SCRIPT" --interactive 2>/dev/null; then
-                echo ""
-            fi
+    if command -v curl >/dev/null 2>&1; then
+        log_info "Downloading pre-push hook..."
+        if curl -sL "${REPO_URL}/.github/hooks/pre-push" -o ".git/hooks/pre-push"; then
+            chmod +x .git/hooks/pre-push
+            log_success "Created .git/hooks/pre-push with semantic versioning"
+        else
+            log_warn "Failed to download pre-push hook."
         fi
     fi
-fi
-
-echo "🔍 Running Universal CI verification..."
-
-if [ -f "${REPO_ROOT}/run-ci.sh" ]; then
-    "${REPO_ROOT}/run-ci.sh"
-elif command -v curl >/dev/null 2>&1; then
-    curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/run-ci.sh | sh
-else
-    echo "⚠️  run-ci.sh not found and curl not available"
-    exit 0
-fi
-
-exit_code=$?
-
-if [ $exit_code -ne 0 ]; then
-    echo ""
-    echo "❌ Verification failed. Push blocked."
-    echo "   Fix the issues above and try again."
-    exit 1
-fi
-
-echo "✅ Verification passed. Proceeding with push..."
-HOOK
-
-    chmod +x .git/hooks/pre-push
     log_success "Created .git/hooks/pre-push with semantic versioning"
 }
 

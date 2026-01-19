@@ -69,6 +69,25 @@ read_config_bool() {
     echo "$default"
     return
   fi
+
+  # Helper for python extraction
+  # key format: "section.property" or just "property"
+  # We handle 1 level of nesting for "semver.enabled"
+  
+  if command -v python3 >/dev/null 2>&1; then
+    # Parse key: if it has a dot, split it.
+    local section="${key%%.*}"
+    local prop="${key#*.}"
+    
+    if [[ "$section" == "$key" ]]; then
+        # No dot
+        python3 -c "import sys, json; data=json.load(open('$CONFIG_FILE')); print(str(data.get('$key', '$default')).lower())" 2>/dev/null
+    else
+        # Nested
+        python3 -c "import sys, json; data=json.load(open('$CONFIG_FILE')); print(str(data.get('$section', {}).get('$prop', '$default')).lower())" 2>/dev/null
+    fi
+    return
+  fi
   
   local value=$(sed -n "s/.*\"$key\"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p" "$CONFIG_FILE" 2>/dev/null | head -1)
   [[ -z "$value" ]] && value="$default"

@@ -449,9 +449,29 @@ function Setup-GitHooks {
         New-Item -ItemType Directory -Path $hooksDir -Force | Out-Null
     }
     
-    $prePushHook = @'
+    $scriptsDir = ".github/scripts"
+    if (-not (Test-Path $scriptsDir)) {
+        New-Item -ItemType Directory -Path $scriptsDir -Force | Out-Null
+    }
+
+    try {
+        # Download scripts
+        Write-Info "Downloading semantic versioning scripts..."
+        Invoke-WebRequest -Uri "$RepoUrl/.github/scripts/semantic-version.sh" -OutFile "$scriptsDir/semantic-version.sh" -UseBasicParsing
+        Invoke-WebRequest -Uri "$RepoUrl/.github/scripts/bump-version.sh" -OutFile "$scriptsDir/bump-version.sh" -UseBasicParsing
+        
+        # Download pre-push hook
+        Write-Info "Downloading pre-push hook..."
+        Invoke-WebRequest -Uri "$RepoUrl/.github/hooks/pre-push" -OutFile "$hooksDir/pre-push" -UseBasicParsing
+        
+        Write-Success "Created .git/hooks/pre-push with semantic versioning"
+        
+    } catch {
+        Write-Warn "Failed to download hooks/scripts from repo. Generating simple fallback."
+        
+        $prePushHook = @'
 #!/bin/sh
-# Universal CI Pre-Push Hook
+# Universal CI Pre-Push Hook (Fallback)
 
 echo "🔍 Running Universal CI verification..."
 
@@ -474,15 +494,15 @@ fi
 
 echo "✅ Verification passed."
 '@
-    
-    $prePushHook | Set-Content "$hooksDir/pre-push" -Encoding UTF8 -NoNewline
-    
-    # Make executable on Unix-like systems
-    if ($IsLinux -or $IsMacOS) {
-        chmod +x "$hooksDir/pre-push"
+        $prePushHook | Set-Content "$hooksDir/pre-push" -Encoding UTF8 -NoNewline
     }
     
-    Write-Success "Created .git/hooks/pre-push"
+    # Try to set executable if sh/chmod is available (Git Bash)
+    if (Get-Command sh -ErrorAction SilentlyContinue) {
+        try { 
+            sh -c "chmod +x $hooksDir/pre-push $scriptsDir/*.sh" 2>$null
+        } catch {}
+    }
 }
 
 # ============================================================================

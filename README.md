@@ -15,11 +15,14 @@ irm https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/in
 ```
 
 **That's it.** The installer will:
-1. ✅ Download the CI runner script
+1. ✅ Download the latest CI runner scripts
 2. ✅ Auto-detect your project type (Node, Python, Go, Rust, .NET, Java, Kotlin, Scala, Swift, C++, Dart, Ruby, PHP)
-3. ✅ Generate `universal-ci.config.json` with smart defaults
-4. ✅ Set up Git pre-push hooks
+3. ✅ Generate `universal-ci.config.json` with smart defaults (safely detects existing config)
+4. ✅ Set up/Update Git pre-push hooks (including Semantic Versioning)
 5. ✅ Run initial CI verification
+
+> **Already using Universal CI?**
+> Simply re-run the installation command above to update your scripts and hooks to the latest version.
 
 ### Advanced Install Options
 

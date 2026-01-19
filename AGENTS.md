@@ -73,7 +73,7 @@ curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/ma
 ./run-ci.sh
 ```
 
-## � Supported Agent Types
+## 🌐 Supported Agent Types
 
 | Agent Type | Setup Method | Dependencies |
 |------------|--------------|--------------|
