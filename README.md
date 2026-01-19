@@ -540,7 +540,7 @@ Universal CI automatically analyzes your git history and determines version bump
 
 ### Conventional Commits Format
 
-Write commit messages following this pattern:
+Write commit messages following this pattern. [See full Commit Standard documentation](docs/COMMIT_STANDARD.md).
 
 ```bash
 # New feature (triggers minor bump)
