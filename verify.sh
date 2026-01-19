@@ -145,6 +145,7 @@ parse_tasks() {
         dir=$(echo "$task_json" | sed -n 's/.*"working_directory"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
         cmd=$(echo "$task_json" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
         task_stage=$(echo "$task_json" | sed -n 's/.*"stage"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+        versions=$(echo "$task_json" | sed -n 's/.*"versions"[[:space:]]*:[[:space:]]*\[\([^]]*\)\].*/\1/p')
         
         # Default stage to "test" if not specified
         if [ -z "$task_stage" ]; then
@@ -153,8 +154,24 @@ parse_tasks() {
         
         # Output if stage matches and we have required fields
         if [ "$task_stage" = "$target_stage" ] && [ -n "$name" ] && [ -n "$cmd" ]; then
-            # Use unit separator character as delimiter
-            printf '%s\x1f%s\x1f%s\n' "$name" "$dir" "$cmd"
+            # If versions are specified, expand task for each version
+            if [ -n "$versions" ]; then
+                # Extract versions from JSON array and iterate
+                echo "$versions" | sed 's/"//g' | sed 's/,/\n/g' | while read -r version; do
+                    version=$(echo "$version" | sed 's/[[:space:]]*//g')
+                    [ -z "$version" ] && continue
+                    
+                    # Replace {version} placeholder in name and command
+                    expanded_name=$(echo "$name" | sed "s/{version}/$version/g")
+                    expanded_cmd=$(echo "$cmd" | sed "s/{version}/$version/g")
+                    
+                    # Use unit separator character as delimiter
+                    printf '%s\x1f%s\x1f%s\n' "$expanded_name" "$dir" "$expanded_cmd"
+                done
+            else
+                # No versions specified, output task as-is
+                printf '%s\x1f%s\x1f%s\n' "$name" "$dir" "$cmd"
+            fi
         fi
     done
 }

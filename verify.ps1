@@ -154,20 +154,46 @@ function Main {
     Write-Host "---------------------------------------------------"
     Write-Host "${Blue}🛠  $($Stage.ToUpper()) PHASE${Reset}"
     
-    # Filter tasks by stage
-    $tasks = $configData.tasks | Where-Object { 
-        $taskStage = if ($_.stage) { $_.stage } else { "test" }
-        $taskStage -eq $Stage
+    # Filter tasks by stage and expand versions
+    $expandedTasks = @()
+    foreach ($task in $configData.tasks) {
+        $taskStage = if ($task.stage) { $task.stage } else { "test" }
+        
+        if ($taskStage -eq $Stage) {
+            # Check if task has versions array
+            if ($task.versions -and $task.versions.Count -gt 0) {
+                # Expand task for each version
+                foreach ($version in $task.versions) {
+                    $expandedName = $task.name -replace "{version}", $version
+                    $expandedCommand = $task.command -replace "{version}", $version
+                    
+                    $expandedTasks += @{
+                        name = $expandedName
+                        working_directory = $task.working_directory
+                        command = $expandedCommand
+                        stage = $taskStage
+                    }
+                }
+            } else {
+                # No versions, add task as-is
+                $expandedTasks += @{
+                    name = $task.name
+                    working_directory = $task.working_directory
+                    command = $task.command
+                    stage = $taskStage
+                }
+            }
+        }
     }
     
-    if (-not $tasks -or $tasks.Count -eq 0) {
+    if ($expandedTasks.Count -eq 0) {
         Write-Host "   ${Yellow}No tasks found for stage: ${Stage}${Reset}"
         exit 0
     }
     
     # Run tasks
     $failures = @()
-    foreach ($task in $tasks) {
+    foreach ($task in $expandedTasks) {
         $success = Invoke-Task -Name $task.name -WorkingDirectory $task.working_directory -Command $task.command
         if (-not $success) {
             $failures += $task.name

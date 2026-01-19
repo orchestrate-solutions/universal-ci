@@ -108,6 +108,31 @@ All agents use the same `universal-ci.config.json` configuration:
 
 **Zero configuration differences** between local and cloud execution.
 
+### Version Testing (Matrix Strategy)
+
+Test across multiple versions without duplicating task definitions:
+
+```json
+{
+  "tasks": [
+    {
+      "name": "Test Python {version}",
+      "working_directory": ".",
+      "command": "python{version} -m pytest",
+      "stage": "test",
+      "versions": ["3.9", "3.10", "3.11", "3.12", "3.13"]
+    }
+  ]
+}
+```
+
+This automatically creates 5 separate test runs (one for each Python version). The `{version}` placeholder is replaced with each value from the `versions` array.
+
+**Supported version testing:**
+- Python: `python3.9`, `python3.10`, etc.
+- Node.js: `node16`, `node18`, `node20`, etc.
+- Any tool: Just use `{version}` in the command
+
 ## 🎯 Best Practices
 
 - **Test Locally First**: Always run `./verify.sh` locally before pushing

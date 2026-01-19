@@ -247,13 +247,40 @@ Edit `universal-ci.config.json` to add your own tasks:
 }
 ```
 
+### Version Testing (Matrix Strategy)
+Test across multiple versions without duplicating tasks:
+
+```json
+{
+  "tasks": [
+    {
+      "name": "Test on Python {version}",
+      "working_directory": ".",
+      "command": "python{version} -m pytest",
+      "stage": "test",
+      "versions": ["3.9", "3.10", "3.11", "3.12", "3.13"]
+    },
+    {
+      "name": "Test on Node {version}",
+      "working_directory": ".",
+      "command": "node{version} --version && npm test",
+      "stage": "test",
+      "versions": ["16", "18", "20", "22"]
+    }
+  ]
+}
+```
+
+When `versions` is specified, Universal CI automatically creates separate tasks for each version, replacing `{version}` with the actual value. This is equivalent to GitHub Actions' matrix strategy but in your config file.
+
 ### Task Properties
 | Property | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `name` | ✅ | - | Human-readable task identifier |
+| `name` | ✅ | - | Human-readable task identifier (can include `{version}` placeholder) |
 | `working_directory` | ✅ | - | Directory to execute command from |
-| `command` | ✅ | - | Shell command to run |
+| `command` | ✅ | - | Shell command to run (can include `{version}` placeholder) |
 | `stage` | ❌ | `"test"` | `"test"` or `"release"` |
+| `versions` | ❌ | - | Array of versions to test (e.g., `["3.9", "3.10", "3.11"]`) |
 
 ---
 
