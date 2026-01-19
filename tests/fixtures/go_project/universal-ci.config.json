@@ -1,0 +1,28 @@
+{
+  "tasks": [
+    {
+      "name": "Download Dependencies",
+      "working_directory": ".",
+      "command": "go mod download",
+      "stage": "test"
+    },
+    {
+      "name": "Lint",
+      "working_directory": ".",
+      "command": "go vet ./... && (which golangci-lint && golangci-lint run || echo 'golangci-lint not installed')",
+      "stage": "test"
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "go test -v ./...",
+      "stage": "test"
+    },
+    {
+      "name": "Build",
+      "working_directory": ".",
+      "command": "go build -v ./...",
+      "stage": "release"
+    }
+  ]
+}

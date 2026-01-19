@@ -1,0 +1,16 @@
+{
+  "tasks": [
+    {
+      "name": "Build",
+      "working_directory": ".",
+      "command": "make",
+      "stage": "test"
+    },
+    {
+      "name": "Test",
+      "working_directory": ".",
+      "command": "make test || echo 'No test target'",
+      "stage": "test"
+    }
+  ]
+}

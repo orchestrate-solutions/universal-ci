@@ -1,0 +1,22 @@
+{
+  "tasks": [
+    {
+      "name": "Compile",
+      "working_directory": ".",
+      "command": "mvn compile",
+      "stage": "test"
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "mvn test",
+      "stage": "test"
+    },
+    {
+      "name": "Package",
+      "working_directory": ".",
+      "command": "mvn package -DskipTests",
+      "stage": "release"
+    }
+  ]
+}

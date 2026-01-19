@@ -1,0 +1,22 @@
+{
+  "tasks": [
+    {
+      "name": "Install Dependencies",
+      "working_directory": ".",
+      "command": "composer install",
+      "stage": "setup"
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "vendor/bin/phpunit",
+      "stage": "test"
+    },
+    {
+      "name": "Lint",
+      "working_directory": ".",
+      "command": "vendor/bin/phpcs --standard=PSR12 src/ || echo 'PHP CodeSniffer not available'",
+      "stage": "test"
+    }
+  ]
+}

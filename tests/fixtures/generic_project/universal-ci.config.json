@@ -1,0 +1,10 @@
+{
+  "tasks": [
+    {
+      "name": "Hello World",
+      "working_directory": ".",
+      "command": "echo '✅ Universal CI is ready! Edit universal-ci.config.json to add your tasks.'",
+      "stage": "test"
+    }
+  ]
+}

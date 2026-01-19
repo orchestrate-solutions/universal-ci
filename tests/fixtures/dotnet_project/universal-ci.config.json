@@ -1,0 +1,28 @@
+{
+  "tasks": [
+    {
+      "name": "Restore",
+      "working_directory": ".",
+      "command": "dotnet restore",
+      "stage": "test"
+    },
+    {
+      "name": "Build",
+      "working_directory": ".",
+      "command": "dotnet build --no-restore",
+      "stage": "test"
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "dotnet test --no-build --verbosity normal",
+      "stage": "test"
+    },
+    {
+      "name": "Publish",
+      "working_directory": ".",
+      "command": "dotnet publish -c Release",
+      "stage": "release"
+    }
+  ]
+}

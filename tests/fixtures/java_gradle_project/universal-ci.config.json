@@ -1,0 +1,22 @@
+{
+  "tasks": [
+    {
+      "name": "Compile",
+      "working_directory": ".",
+      "command": "./gradlew compileJava || gradlew compileJava",
+      "stage": "test"
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "./gradlew test || gradlew test",
+      "stage": "test"
+    },
+    {
+      "name": "Build",
+      "working_directory": ".",
+      "command": "./gradlew build -x test || gradlew build -x test",
+      "stage": "release"
+    }
+  ]
+}

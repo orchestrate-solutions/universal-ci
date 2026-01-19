@@ -1,0 +1,22 @@
+{
+  "tasks": [
+    {
+      "name": "Install Dependencies",
+      "working_directory": ".",
+      "command": "bundle install",
+      "stage": "setup"
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "bundle exec rspec",
+      "stage": "test"
+    },
+    {
+      "name": "Lint",
+      "working_directory": ".",
+      "command": "bundle exec rubocop || echo 'Rubocop not available'",
+      "stage": "test"
+    }
+  ]
+}

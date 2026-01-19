@@ -1,0 +1,28 @@
+{
+  "tasks": [
+    {
+      "name": "Check",
+      "working_directory": ".",
+      "command": "cargo check",
+      "stage": "test"
+    },
+    {
+      "name": "Clippy Lint",
+      "working_directory": ".",
+      "command": "cargo clippy -- -D warnings || echo 'Clippy not available'",
+      "stage": "test"
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "cargo test",
+      "stage": "test"
+    },
+    {
+      "name": "Build Release",
+      "working_directory": ".",
+      "command": "cargo build --release",
+      "stage": "release"
+    }
+  ]
+}
