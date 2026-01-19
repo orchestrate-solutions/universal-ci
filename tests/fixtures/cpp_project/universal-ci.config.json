@@ -1,0 +1,22 @@
+{
+  "tasks": [
+    {
+      "name": "Configure",
+      "working_directory": ".",
+      "command": "mkdir -p build && cd build && cmake .. || echo 'CMake not found'",
+      "stage": "test"
+    },
+    {
+      "name": "Build",
+      "working_directory": ".",
+      "command": "cd build && make || make",
+      "stage": "test"
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "cd build && ctest || make test || echo 'No tests configured'",
+      "stage": "test"
+    }
+  ]
+}
