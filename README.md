@@ -127,7 +127,21 @@ Run it locally:
 
 ## 📦 Installation Methods
 
-### One-Command Bootstrap (Recommended)
+### npm (Recommended for Node Projects)
+```bash
+# Install as dev dependency
+npm install --save-dev @orchestrate-solutions/universal-ci
+
+# Initialize config with auto-detection
+npx @orchestrate-solutions/universal-ci init
+
+# Run CI
+npx @orchestrate-solutions/universal-ci
+# or use npm script
+npm run ci
+```
+
+### One-Command Bootstrap (Shell/curl)
 ```bash
 # macOS / Linux / WSL
 curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/install-ci.sh | sh

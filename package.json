@@ -1,0 +1,46 @@
+{
+  "name": "@orchestrate-solutions/universal-ci",
+  "version": "1.0.0",
+  "description": "Configuration-driven CI/CD that works everywhere - one script, zero dependencies",
+  "main": "run-ci.sh",
+  "bin": {
+    "run-ci": "./bin/cli.js",
+    "universal-ci": "./bin/cli.js"
+  },
+  "files": [
+    "run-ci.sh",
+    "install-ci.sh",
+    "bin/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "./run-ci.sh --config universal-ci.config.json",
+    "ci": "./run-ci.sh --stage test && ./run-ci.sh --stage release"
+  },
+  "keywords": [
+    "ci",
+    "cd",
+    "cicd",
+    "devops",
+    "automation",
+    "testing",
+    "universal",
+    "cross-platform",
+    "shell",
+    "zero-dependencies"
+  ],
+  "author": "Orchestrate Solutions",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/orchestrate-solutions/universal-ci.git"
+  },
+  "homepage": "https://github.com/orchestrate-solutions/universal-ci",
+  "bugs": {
+    "url": "https://github.com/orchestrate-solutions/universal-ci/issues"
+  },
+  "engines": {
+    "node": ">=12.0.0"
+  }
+}
