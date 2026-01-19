@@ -1,0 +1,103 @@
+name: Publish to npm
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'package.json'
+      - 'run-ci.sh'
+      - 'bin/cli.js'
+      - '.github/workflows/publish-npm.yml'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      id-token: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for versioning
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+      
+      - name: Determine version bump
+        id: version
+        run: |
+          # Get the last git tag (if any)
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "last_tag=$LAST_TAG" >> $GITHUB_OUTPUT
+          
+          # Get commit messages since last tag
+          COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"%B" 2>/dev/null || git log --pretty=format:"%B" | head -20)
+          echo "commits=$COMMITS" >> $GITHUB_OUTPUT
+          
+          # Determine version bump type
+          if echo "$COMMITS" | grep -qi "breaking change\|^break"; then
+            BUMP="major"
+          elif echo "$COMMITS" | grep -qi "feat:"; then
+            BUMP="minor"
+          else
+            BUMP="patch"
+          fi
+          echo "bump=$BUMP" >> $GITHUB_OUTPUT
+          echo "Version bump type: $BUMP"
+      
+      - name: Update version in package.json
+        run: |
+          npm version ${{ steps.version.outputs.bump }} --no-git-tag-version
+          VERSION=$(node -p "require('./package.json').version")
+          echo "NEW_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Publishing version: $VERSION"
+      
+      - name: Verify scripts exist
+        run: |
+          test -f run-ci.sh || { echo "run-ci.sh not found"; exit 1; }
+          test -f bin/cli.js || { echo "bin/cli.js not found"; exit 1; }
+          test -f package.json || { echo "package.json not found"; exit 1; }
+          echo "✅ All required files present"
+      
+      - name: Publish to npm
+        run: |
+          npm publish --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      
+      - name: Create Git tag
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add package.json
+          git commit -m "chore: bump version to ${{ env.NEW_VERSION }}"
+          git tag "v${{ env.NEW_VERSION }}"
+          git push origin main --tags
+      
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ env.NEW_VERSION }}
+          release_name: Release ${{ env.NEW_VERSION }}
+          body: |
+            ## Version ${{ env.NEW_VERSION }}
+            
+            ### Changes
+            - Automatically published to npm
+            - Download: https://www.npmjs.com/package/@orchestrate-solutions/universal-ci
+            
+            ### Installation
+            ```bash
+            npm install @orchestrate-solutions/universal-ci@${{ env.NEW_VERSION }}
+            ```
+          draft: false
+          prerelease: false

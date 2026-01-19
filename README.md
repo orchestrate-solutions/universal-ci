@@ -521,6 +521,49 @@ The Docker setup creates:
 
 ---
 
+## 📦 Publishing to npm
+
+Universal CI automatically publishes to npm when changes are pushed to main.
+
+### Setup (One-time)
+
+1. Create an npm account at https://npmjs.com
+2. Generate an access token (with publish permission)
+3. Add it to GitHub: Repository Settings → Secrets and variables → New repository secret
+   - **Name:** `NPM_TOKEN`
+   - **Value:** Your npm access token
+
+### Publishing Flow
+
+Every push to `main` that modifies `package.json` triggers automatic publishing:
+
+1. **Manual version bump** in `package.json`:
+   ```bash
+   npm version patch  # or minor, major
+   git push origin main
+   ```
+
+2. **Automatic workflow:**
+   - Detects version change in package.json
+   - Publishes to npm with provenance
+   - Creates GitHub release
+   - Tags commit with version
+
+### Version Strategy
+
+Edit `package.json` to increment the version:
+```json
+{
+  "version": "1.0.1"  // Change this, push to main
+}
+```
+
+The workflow automatically publishes and creates GitHub releases at:
+- https://www.npmjs.com/package/@orchestrate-solutions/universal-ci
+- https://github.com/orchestrate-solutions/universal-ci/releases
+
+---
+
 ## 🌟 Philosophy
 
 **Simple, Predictable, Everywhere**
