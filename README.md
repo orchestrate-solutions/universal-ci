@@ -16,7 +16,7 @@ irm https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/in
 
 **That's it.** The installer will:
 1. ✅ Download the verification script
-2. ✅ Auto-detect your project type (Node, Python, Go, Rust, .NET, Java, Ruby, PHP)
+2. ✅ Auto-detect your project type (Node, Python, Go, Rust, .NET, Java, Kotlin, Scala, Swift, C++, Dart, Ruby, PHP)
 3. ✅ Generate `universal-ci.config.json` with smart defaults
 4. ✅ Set up Git pre-push hooks
 5. ✅ Run initial verification
@@ -58,7 +58,7 @@ Universal CI is a lightweight, configuration-driven CI/CD tool that runs the sam
 - **📦 Multi-Stage**: Separate `test` and `release` stage configurations
 - **🌍 Cross-Platform**: Shell script for macOS/Linux, PowerShell for Windows
 - **🎯 Task-Based**: Each task specifies its working directory and command
-- **🔍 Smart Detection**: Auto-detects Node, Python, Go, Rust, .NET, Java, Ruby, PHP projects
+- **🔍 Smart Detection**: Auto-detects 16+ programming languages (Node, Python, Go, Rust, .NET, Java, Kotlin, Scala, Swift, C++, Dart, Ruby, PHP, and more)
 
 ### Supported Project Types
 
@@ -73,6 +73,11 @@ The installer automatically detects and configures:
 | **.NET** | `*.csproj`, `*.fsproj` | dotnet | restore, build, test |
 | **Java (Maven)** | `pom.xml` | maven | compile, test, package |
 | **Java (Gradle)** | `build.gradle*` | gradle | compile, test, build |
+| **Kotlin** | `build.gradle.kts`, `src/main/kotlin` | gradle | build, test, assemble |
+| **Scala** | `build.sbt`, `src/main/scala` | sbt/gradle | compile, test, package |
+| **Swift** | `Package.swift`, `Sources/` | swiftpm | build, test, release |
+| **C++** | `CMakeLists.txt`, `*.cpp` | cmake/make | configure, build, test |
+| **Dart** | `pubspec.yaml`, `*.dart` | pub | get, analyze, test, build |
 | **Ruby** | `Gemfile` | bundler | install, rubocop, test |
 | **PHP** | `composer.json` | composer | install, phpstan, test |
 | **Makefile** | `Makefile` | make | build, test |
