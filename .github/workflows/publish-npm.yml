@@ -33,37 +33,73 @@ jobs:
       - name: Determine version bump
         id: version
         run: |
-          # Get the last git tag (if any)
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "last_tag=$LAST_TAG" >> $GITHUB_OUTPUT
+          # Read current version from VERSION file
+          CURRENT=$(cat VERSION | tr -d '\n' | xargs)
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
           
-          # Get commit messages since last tag
+          # Get commit messages since last tag (if any)
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"%B" 2>/dev/null || git log --pretty=format:"%B" | head -20)
           echo "commits=$COMMITS" >> $GITHUB_OUTPUT
           
           # Determine version bump type
           if echo "$COMMITS" | grep -qi "breaking change\|^break"; then
             BUMP="major"
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
           elif echo "$COMMITS" | grep -qi "feat:"; then
             BUMP="minor"
+            MINOR=$((MINOR + 1))
+            PATCH=0
           else
             BUMP="patch"
+            PATCH=$((PATCH + 1))
           fi
+          
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
           echo "bump=$BUMP" >> $GITHUB_OUTPUT
-          echo "Version bump type: $BUMP"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Version bump type: $BUMP → $NEW_VERSION"
       
-      - name: Update version in package.json
+      - name: Update VERSION file
         run: |
-          npm version ${{ steps.version.outputs.bump }} --no-git-tag-version
-          VERSION=$(node -p "require('./package.json').version")
-          echo "NEW_VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Publishing version: $VERSION"
+          echo "${{ steps.version.outputs.new_version }}" > VERSION
+      
+      - name: Update CHANGELOG.md
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          NEW_VERSION=${{ steps.version.outputs.new_version }}
+          
+          # Create temp changelog
+          {
+            head -n 14 CHANGELOG.md
+            echo ""
+            echo "## [$NEW_VERSION] - $DATE"
+            echo ""
+            echo "### Changed"
+            git log --pretty=format:"- %s" $(git describe --tags --abbrev=0 2>/dev/null || echo "HEAD")..HEAD | head -20
+            echo ""
+            tail -n +15 CHANGELOG.md
+          } > CHANGELOG.md.tmp
+          
+          mv CHANGELOG.md.tmp CHANGELOG.md
+      
+      - name: Update package.json
+        run: |
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '${{ steps.version.outputs.new_version }}';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
       
       - name: Verify scripts exist
         run: |
           test -f run-ci.sh || { echo "run-ci.sh not found"; exit 1; }
           test -f bin/cli.js || { echo "bin/cli.js not found"; exit 1; }
           test -f package.json || { echo "package.json not found"; exit 1; }
+          test -f VERSION || { echo "VERSION not found"; exit 1; }
           echo "✅ All required files present"
       
       - name: Publish to npm
@@ -76,28 +112,20 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add package.json
-          git commit -m "chore: bump version to ${{ env.NEW_VERSION }}"
-          git tag "v${{ env.NEW_VERSION }}"
+          git add VERSION CHANGELOG.md package.json
+          git commit -m "chore: release v${{ steps.version.outputs.new_version }}"
+          git tag "v${{ steps.version.outputs.new_version }}"
           git push origin main --tags
       
       - name: Create Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ env.NEW_VERSION }}
-          release_name: Release ${{ env.NEW_VERSION }}
+          tag_name: v${{ steps.version.outputs.new_version }}
+          name: Release ${{ steps.version.outputs.new_version }}
           body: |
-            ## Version ${{ env.NEW_VERSION }}
+            Published to npm: https://www.npmjs.com/package/@orchestrate-solutions/universal-ci/v${{ steps.version.outputs.new_version }}
             
-            ### Changes
-            - Automatically published to npm
-            - Download: https://www.npmjs.com/package/@orchestrate-solutions/universal-ci
+            Version bump: ${{ steps.version.outputs.bump }}
             
-            ### Installation
-            ```bash
-            npm install @orchestrate-solutions/universal-ci@${{ env.NEW_VERSION }}
-            ```
-          draft: false
-          prerelease: false
+            See CHANGELOG.md for details.
+          generate_release_notes: false

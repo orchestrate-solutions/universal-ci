@@ -30,12 +30,22 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
       
-      - name: Get version from package.json
+      - name: Get version from VERSION file
         id: version
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          VERSION=$(cat VERSION | tr -d '\n' | xargs)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Publishing version: $VERSION"
+      
+      - name: Update package.json from VERSION
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '$VERSION';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
       
       - name: Check if already published
         run: |
@@ -51,6 +61,20 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       
+      - name: Extract changelog entry
+        id: changelog
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          # Extract changelog for this version
+          CHANGELOG=$(sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | sed '$ d' | tail -n +2)
+          
+          # Handle multiline changelog
+          CHANGELOG="${CHANGELOG//'%'/'%25'}"
+          CHANGELOG="${CHANGELOG//$'\n'/'%0A'}"
+          CHANGELOG="${CHANGELOG//$'\r'/'%0D'}"
+          
+          echo "changelog=$CHANGELOG" >> $GITHUB_OUTPUT
+      
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -58,4 +82,7 @@ jobs:
           name: Release ${{ steps.version.outputs.version }}
           body: |
             Published to npm: https://www.npmjs.com/package/@orchestrate-solutions/universal-ci/v${{ steps.version.outputs.version }}
-          generate_release_notes: true
+            
+            ## Changelog
+            ${{ steps.changelog.outputs.changelog }}
+          generate_release_notes: false

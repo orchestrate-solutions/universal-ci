@@ -523,6 +523,78 @@ The Docker setup creates:
 
 ## 📦 Publishing to npm
 
+Universal CI uses a unified versioning system with VERSION file, CHANGELOG.md, and automated npm publishing.
+
+### Version Files
+
+- **VERSION** - Single source of truth (e.g., `1.0.1`)
+- **CHANGELOG.md** - Dated release notes
+- **package.json** - Automatically synced with VERSION
+
+### Release Workflow
+
+```bash
+# 1. Bump version (auto-updates package.json and CHANGELOG.md)
+.github/scripts/bump-version.sh patch    # or minor, major
+
+# 2. Edit CHANGELOG.md to describe changes
+vim CHANGELOG.md
+# Add details under the new version section
+
+# 3. Commit and push
+git add VERSION CHANGELOG.md package.json
+git commit -m "release: v1.0.1"
+git push origin main
+```
+
+### Automatic Publishing
+
+When you push to main with VERSION file change:
+
+1. **Workflow detects** VERSION file update
+2. **Publishes to npm** with new version
+3. **Creates GitHub release** with changelog
+4. **Tags commit** with version number
+5. **Updates package.json** automatically
+
+### Setup (One-time)
+
+1. Generate npm access token at https://npmjs.com/settings/tokens
+2. Add to GitHub: Settings → Secrets and variables → `NPM_TOKEN`
+3. That's it!
+
+### Works for Any Project
+
+Whether you have:
+- **Single repo:** VERSION is the app version
+- **Monorepo:** Keep VERSION at workspace root (or create per-package)
+- **Multiple projects:** Each can have its own VERSION file
+
+### Example Release
+
+```bash
+$ .github/scripts/bump-version.sh minor
+Current version: 1.0.0
+New version: 1.1.0
+
+✅ Version bumped: 1.0.0 → 1.1.0
+
+Next steps:
+  1. Edit CHANGELOG.md to describe changes
+  2. git add VERSION CHANGELOG.md package.json
+  3. git commit -m "release: v1.1.0"
+  4. git push origin main
+
+# After push:
+# ✅ npm publishes v1.1.0
+# ✅ GitHub creates release
+# ✅ Commit tagged as v1.1.0
+```
+
+---
+
+## 📦 Publishing to npm (Legacy)
+
 Universal CI automatically publishes to npm when changes are pushed to main.
 
 ### Setup (One-time)
