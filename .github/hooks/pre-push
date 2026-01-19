@@ -156,18 +156,42 @@ fi
 # Auto-update version if enabled
 if [[ "$AUTO_UPDATE" == "true" ]]; then
   if [[ -f "$VERSION_FILE" && -f "$BUMP_SCRIPT" ]]; then
-    log_info "Auto-updating VERSION to $BUMP_TYPE bump..."
     
-    # Run bump-version with detected bump type
-    if "$BUMP_SCRIPT" "$BUMP_TYPE" > /dev/null 2>&1; then
-      log_success "Updated VERSION and CHANGELOG.md"
-      
-      # Stage the updated files
-      git add "$VERSION_FILE" "$CHANGELOG_FILE" package.json 2>/dev/null || true
-      log_info "Staged version updates for push"
+    # Check if we've already bumped the version in the latest commit to avoid infinite loop
+    # If the last commit message starts with "chore: release", we assume it's our auto-bump
+    last_msg=$(git log -1 --pretty=%B)
+    if [[ "$last_msg" == chore:\ release\ v* ]]; then
+      log_info "Version bump already committed. Proceeding with push."
     else
-      log_error "Failed to update VERSION"
-      exit 1
+      log_info "Auto-updating VERSION to $BUMP_TYPE bump..."
+      
+      # Run bump-version with detected bump type
+      # Capture output to get the new version number
+      BUMP_OUTPUT=$("$BUMP_SCRIPT" "$BUMP_TYPE")
+      EXIT_CODE=$?
+      
+      if [[ $EXIT_CODE -eq 0 ]]; then
+        # Extract new version (simple grep from the output or read file)
+        NEW_VERSION=$(head -n 1 "$VERSION_FILE")
+        
+        log_success "Updated VERSION to v${NEW_VERSION}"
+        
+        # Commit the version bump
+        git add "$VERSION_FILE" "$CHANGELOG_FILE" package.json 2>/dev/null || true
+        git commit -m "chore: release v${NEW_VERSION} [skip ci]" --no-verify >/dev/null 2>&1
+        
+        log_warn "---------------------------------------------------------"
+        log_warn "🚀 Version bumped and committed: v${NEW_VERSION}"
+        log_warn "---------------------------------------------------------"
+        log_info "The push was intercepted to include the version update."
+        log_info "Please run 'git push' again used to publish this release."
+        log_warn "---------------------------------------------------------"
+        
+        exit 1 # Intentionally fail push to let user re-push with new commit
+      else
+        log_error "Failed to update VERSION"
+        exit 1
+      fi
     fi
   fi
 fi
