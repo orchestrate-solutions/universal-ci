@@ -1,0 +1,28 @@
+{
+  "tasks": [
+    {
+      "name": "Get Dependencies",
+      "working_directory": ".",
+      "command": "dart pub get",
+      "stage": "test"
+    },
+    {
+      "name": "Analyze",
+      "working_directory": ".",
+      "command": "dart analyze",
+      "stage": "test"
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "dart test",
+      "stage": "test"
+    },
+    {
+      "name": "Build",
+      "working_directory": ".",
+      "command": "dart compile exe bin/main.dart -o bin/main || echo 'No executable to build'",
+      "stage": "release"
+    }
+  ]
+}
