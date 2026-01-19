@@ -1,0 +1,177 @@
+#!/bin/bash
+
+################################################################################
+# Pre-push hook template
+#
+# This hook:
+# 1. Analyzes commits using semantic versioning
+# 2. Prompts for breaking changes if needed
+# 3. Automatically updates VERSION and CHANGELOG.md
+# 4. Can be disabled via universal-ci.config.json
+#
+# Installation:
+#   cp .github/hooks/pre-push .git/hooks/pre-push
+#   chmod +x .git/hooks/pre-push
+#
+# Configuration (universal-ci.config.json):
+#   {
+#     "semver": {
+#       "enabled": true,
+#       "auto_update_version": true,
+#       "require_breaking_change_confirmation": true
+#     }
+#   }
+################################################################################
+
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+SCRIPTS_DIR="${REPO_ROOT}/.github/scripts"
+CONFIG_FILE="${REPO_ROOT}/universal-ci.config.json"
+VERSION_FILE="${REPO_ROOT}/VERSION"
+CHANGELOG_FILE="${REPO_ROOT}/CHANGELOG.md"
+BUMP_SCRIPT="${SCRIPTS_DIR}/bump-version.sh"
+SEMVER_SCRIPT="${SCRIPTS_DIR}/semantic-version.sh"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+################################################################################
+# Helper Functions
+################################################################################
+
+log_info() {
+  echo -e "${BLUE}ℹ ${1}${NC}" >&2
+}
+
+log_success() {
+  echo -e "${GREEN}✓ ${1}${NC}" >&2
+}
+
+log_warn() {
+  echo -e "${YELLOW}⚠ ${1}${NC}" >&2
+}
+
+log_error() {
+  echo -e "${RED}✗ ${1}${NC}" >&2
+}
+
+# Read config value from universal-ci.config.json
+read_config_bool() {
+  local key="$1"
+  local default="${2:-true}"
+  
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    echo "$default"
+    return
+  fi
+  
+  local value=$(sed -n "s/.*\"$key\"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p" "$CONFIG_FILE" 2>/dev/null | head -1)
+  [[ -z "$value" ]] && value="$default"
+  echo "$value"
+}
+
+# Check if there are commits since last tag
+has_commits_to_release() {
+  local last_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+  
+  if [[ -z "$last_tag" ]]; then
+    # No tags yet, check if there are any commits
+    [[ -n "$(git rev-list HEAD 2>/dev/null)" ]]
+  else
+    # Check if there are commits since last tag
+    [[ -n "$(git log "${last_tag}..HEAD" 2>/dev/null)" ]]
+  fi
+}
+
+################################################################################
+# Main Hook Logic
+################################################################################
+
+# Check if semantic versioning is enabled
+SEMVER_ENABLED=$(read_config_bool "semver.enabled" "true")
+AUTO_UPDATE=$(read_config_bool "semver.auto_update_version" "true")
+REQUIRE_BREAKING_CONFIRM=$(read_config_bool "semver.require_breaking_change_confirmation" "true")
+
+if [[ "$SEMVER_ENABLED" != "true" ]]; then
+  # Semantic versioning is disabled, skip
+  exit 0
+fi
+
+# Check if scripts exist
+if [[ ! -f "$SEMVER_SCRIPT" ]]; then
+  log_warn "semantic-version.sh not found, skipping semantic versioning"
+  exit 0
+fi
+
+# Check if there are commits to analyze
+if ! has_commits_to_release; then
+  log_info "No commits to release, skipping semantic versioning"
+  exit 0
+fi
+
+log_info "Analyzing commits for semantic versioning..."
+
+# Analyze commits
+if ! ANALYSIS=$("$SEMVER_SCRIPT" --analyze 2>/dev/null); then
+  log_error "Failed to analyze commits"
+  exit 1
+fi
+
+# Parse JSON response (portable sed-based parsing)
+BUMP_TYPE=$(echo "$ANALYSIS" | sed -n 's/.*"bump_type"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+BREAKING_COUNT=$(echo "$ANALYSIS" | sed -n 's/.*"breaking"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p')
+FEATURE_COUNT=$(echo "$ANALYSIS" | sed -n 's/.*"features"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p')
+FIX_COUNT=$(echo "$ANALYSIS" | sed -n 's/.*"fixes"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p')
+
+log_info "Found: $FEATURE_COUNT features, $FIX_COUNT fixes, $BREAKING_COUNT breaking changes"
+log_success "Suggested version bump: ${YELLOW}${BUMP_TYPE}${NC}"
+
+# If breaking changes detected, require user confirmation
+if [[ $BREAKING_COUNT -gt 0 && "$REQUIRE_BREAKING_CONFIRM" == "true" ]]; then
+  log_warn "Breaking changes detected!"
+  echo ""
+  
+  # Interactive breaking change confirmation
+  while true; do
+    read -p "$(echo -e ${BLUE}Confirm breaking changes? [yes/no]${NC}: )" confirm
+    confirm=$(echo "$confirm" | tr '[:upper:]' '[:lower:]')
+    
+    if [[ "$confirm" == "yes" ]]; then
+      log_success "Breaking change confirmed"
+      break
+    elif [[ "$confirm" == "no" ]]; then
+      log_error "Push cancelled - breaking changes not confirmed"
+      exit 1
+    else
+      log_error "Please respond with 'yes' or 'no'"
+    fi
+  done
+fi
+
+# Auto-update version if enabled
+if [[ "$AUTO_UPDATE" == "true" ]]; then
+  if [[ -f "$VERSION_FILE" && -f "$BUMP_SCRIPT" ]]; then
+    log_info "Auto-updating VERSION to $BUMP_TYPE bump..."
+    
+    # Run bump-version with detected bump type
+    if "$BUMP_SCRIPT" "$BUMP_TYPE" > /dev/null 2>&1; then
+      log_success "Updated VERSION and CHANGELOG.md"
+      
+      # Stage the updated files
+      git add "$VERSION_FILE" "$CHANGELOG_FILE" package.json 2>/dev/null || true
+      log_info "Staged version updates for push"
+    else
+      log_error "Failed to update VERSION"
+      exit 1
+    fi
+  fi
+fi
+
+echo ""
+log_success "Pre-push verification complete - proceeding with push"
+exit 0
