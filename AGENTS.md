@@ -222,5 +222,19 @@ fi
 
 ---
 
-**Universal CI: The same verification, everywhere.** 🚀</content>
+**Universal CI: The same verification, everywhere.** 🚀
+
+## 🤖 Semantic Versioning for Agents
+
+Universal CI now supports automated semantic versioning. Agents can check the status of version bumps using the CLI:
+
+```bash
+# Get JSON analysis of current changes
+./.github/scripts/semantic-version.sh --analyze
+
+# Get suggested bump type
+./.github/scripts/semantic-version.sh --bump-type
+```
+
+This outputs standard JSON that agents can parse to understand if their changes will trigger a patch, minor, or major version bump.</content>
 <parameter name="filePath">/Users/jwink/Documents/universal-ci/AGENTS.md
