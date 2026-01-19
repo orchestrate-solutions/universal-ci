@@ -1,0 +1,35 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "fixtures", "fixtures", "{F12727AA-ABEF-07AF-E6F0-CD96E3D9A8AF}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "dotnet_project", "dotnet_project", "{55C027C7-91C0-AA21-5D9F-E57EC69DA2A0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "dotnet_example", "tests\fixtures\dotnet_project\dotnet_example.csproj", "{3D803672-4F3E-E112-9132-AB706C256C00}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3D803672-4F3E-E112-9132-AB706C256C00}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3D803672-4F3E-E112-9132-AB706C256C00}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3D803672-4F3E-E112-9132-AB706C256C00}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3D803672-4F3E-E112-9132-AB706C256C00}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{F12727AA-ABEF-07AF-E6F0-CD96E3D9A8AF} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{55C027C7-91C0-AA21-5D9F-E57EC69DA2A0} = {F12727AA-ABEF-07AF-E6F0-CD96E3D9A8AF}
+		{3D803672-4F3E-E112-9132-AB706C256C00} = {55C027C7-91C0-AA21-5D9F-E57EC69DA2A0}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F82E940B-EC81-4241-BDD6-74EB8B36A8D1}
+	EndGlobalSection
+EndGlobal
