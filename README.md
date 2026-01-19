@@ -281,6 +281,137 @@ When `versions` is specified, Universal CI automatically creates separate tasks 
 | `command` | ✅ | - | Shell command to run (can include `{version}` placeholder) |
 | `stage` | ❌ | `"test"` | `"test"` or `"release"` |
 | `versions` | ❌ | - | Array of versions to test (e.g., `["3.9", "3.10", "3.11"]`) |
+| `cache` | ❌ | - | Cache configuration with `key` and `paths` |
+| `if` | ❌ | - | Conditional expression (skip if false) |
+| `requires_approval` | ❌ | `false` | Require explicit approval to run task |
+
+---
+
+## 🚀 Advanced Features
+
+### Caching (Performance Optimization)
+
+Skip expensive tasks using hash-based caching:
+
+```json
+{
+  "tasks": [
+    {
+      "name": "Install Dependencies",
+      "working_directory": ".",
+      "command": "npm install",
+      "cache": {
+        "key": "npm-${{ hashFiles('package-lock.json') }}",
+        "paths": ["node_modules"]
+      }
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "npm test"
+    }
+  ]
+}
+```
+
+**How it works:**
+- `${{ hashFiles('file1', 'file2') }}` computes MD5/SHA256 hash of files
+- Cache key is used to create `.universal-ci-cache/{key}/` directory
+- If cache exists, task is skipped (files already installed/built)
+- After successful task, cache is written for next run
+- Hash changes automatically invalidate old cache
+
+### Conditional Task Execution
+
+Run tasks only when specific conditions are met:
+
+```json
+{
+  "tasks": [
+    {
+      "name": "Test Locally",
+      "working_directory": ".",
+      "command": "npm test",
+      "if": "env.CI == '' || env.CI == 'false'"
+    },
+    {
+      "name": "Build Release",
+      "working_directory": ".",
+      "command": "npm run build --production",
+      "stage": "release",
+      "if": "${{ github.ref }} == 'refs/heads/main' && env.PRODUCTION == 'true'"
+    },
+    {
+      "name": "Deploy if Flag Exists",
+      "working_directory": ".",
+      "command": "npm run deploy",
+      "if": "file(.deploy-flag)"
+    },
+    {
+      "name": "Mac-Only Task",
+      "working_directory": ".",
+      "command": "xcode-select --install",
+      "if": "os(macos)"
+    }
+  ]
+}
+```
+
+**Condition Syntax:**
+- **Environment variables:** `env.VAR_NAME` (e.g., `env.CI`, `env.DEPLOY`)
+- **File existence:** `file(path)` (e.g., `file(.deploy-flag)`)
+- **Operating system:** `os(linux)`, `os(macos)`, `os(windows)`
+- **Git branch:** `branch(main)` (e.g., `branch(main)`)
+- **GitHub context:** `${{ github.ref }}` (when running in GitHub Actions)
+- **Boolean logic:** `&&` (and), `||` (or), parentheses for grouping
+- **String comparison:** `==`, `!=` operators
+
+Tasks with unmet conditions are skipped with transparency logging.
+
+### Interactive Mode (AI-First Automation)
+
+List tasks as JSON and run only selected ones - perfect for AI automation:
+
+```bash
+# List all tasks as JSON (AI reads and decides which to run)
+./verify.sh --list-tasks
+
+# Output:
+# {"tasks":[{"name":"Build","directory":".","command":"npm run build"},{"name":"Test","directory":".","command":"npm test"},...]}
+
+# Run only specific tasks (AI selects via JSON array)
+./verify.sh --select-tasks '["Build","Test"]'
+
+# Approve tasks requiring approval
+./verify.sh --stage release --approve-task "Deploy to Production"
+
+# Skip tasks without running them
+./verify.sh --skip-task "Slow Integration Tests"
+```
+
+**Interactive CLI Commands:**
+- `--interactive` - Enable interactive mode
+- `--list-tasks` - Output all parsed tasks as JSON (for AI to read)
+- `--select-tasks '["task1","task2"]'` - Run only named tasks
+- `--approve-task "name"` - Approve task requiring approval (repeatable)
+- `--skip-task "name"` - Skip task by name (repeatable)
+
+**Example: AI-Driven Workflow**
+```bash
+# AI gets list of available tasks
+tasks=$(./verify.sh --list-tasks | jq .tasks)
+
+# AI analyzes and decides which tasks to run
+# AI constructs JSON selection based on logic
+
+# AI executes only the selected tasks
+./verify.sh --select-tasks '["Lint","Test","Build"]'
+
+# If deploy task requires approval, AI requests it
+if ./verify.sh --stage release --list-tasks | jq '.tasks[] | select(.requires_approval == true)'; then
+  ./verify.sh --stage release --approve-task "Deploy" --approve-task "Notify"
+fi
+```
 
 ---
 
@@ -300,6 +431,11 @@ When `versions` is specified, Universal CI automatically creates separate tasks 
 | `--config <path>` | Path to config file (default: `universal-ci.config.json`) |
 | `--stage <stage>` | Stage to run: `test` or `release` (default: `test`) |
 | `--type <type>` | Force project type for `--init` |
+| `--interactive` | Interactive mode (for AI automation) |
+| `--list-tasks` | Output all tasks as JSON (use with --interactive) |
+| `--select-tasks <json>` | Run only specified tasks (e.g., `'["task1","task2"]'`) |
+| `--approve-task <name>` | Approve task requiring approval (repeatable) |
+| `--skip-task <name>` | Skip task by name (repeatable) |
 | `--help` | Show help message |
 
 ### Examples

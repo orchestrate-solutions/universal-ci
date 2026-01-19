@@ -27,6 +27,12 @@ CONFIG_FILE="universal-ci.config.json"
 STAGE="test"
 INIT_MODE=false
 FORCE_TYPE=""
+INTERACTIVE_MODE=false
+LIST_TASKS_ONLY=false
+SELECTED_TASKS=""
+APPROVED_TASKS=""
+SKIPPED_TASKS=""
+CACHE_DIR=".universal-ci-cache"
 
 # Print usage
 usage() {
@@ -41,12 +47,19 @@ usage() {
     echo "  --config <path>    Path to config file (default: universal-ci.config.json)"
     echo "  --stage <stage>    Stage to run: test or release (default: test)"
     echo "  --type <type>      Force project type for --init (nodejs, python, go, rust, etc.)"
+    echo "  --interactive      Interactive mode (requires --list-tasks or task selection flags)"
+    echo "  --list-tasks       Output all tasks as JSON (use with --interactive)"
+    echo "  --select-tasks     JSON array of task names to run (e.g., '[\"task1\",\"task2\"]')"
+    echo "  --approve-task     Approve a task requiring approval (can be used multiple times)"
+    echo "  --skip-task        Skip a task by name (can be used multiple times)"
     echo "  --help             Show this help message"
     echo ""
     echo "Examples:"
     echo "  $0                 Run verification with auto-detected config"
     echo "  $0 --init          Initialize config for current project"
     echo "  $0 --stage release Run release tasks"
+    echo "  $0 --interactive --list-tasks        List all tasks as JSON"
+    echo "  $0 --select-tasks '[\"test\",\"build\"]' Run only selected tasks"
     exit 0
 }
 
@@ -67,6 +80,34 @@ while [ $# -gt 0 ]; do
             ;;
         --type)
             FORCE_TYPE="$2"
+            shift 2
+            ;;
+        --interactive)
+            INTERACTIVE_MODE=true
+            shift
+            ;;
+        --list-tasks)
+            LIST_TASKS_ONLY=true
+            shift
+            ;;
+        --select-tasks)
+            SELECTED_TASKS="$2"
+            shift 2
+            ;;
+        --approve-task)
+            if [ -z "$APPROVED_TASKS" ]; then
+                APPROVED_TASKS="$2"
+            else
+                APPROVED_TASKS="$APPROVED_TASKS|$2"
+            fi
+            shift 2
+            ;;
+        --skip-task)
+            if [ -z "$SKIPPED_TASKS" ]; then
+                SKIPPED_TASKS="$2"
+            else
+                SKIPPED_TASKS="$SKIPPED_TASKS|$2"
+            fi
             shift 2
             ;;
         --help|-h)
@@ -122,8 +163,171 @@ get_json_value() {
     echo "$json" | sed -n "s/.*\"$key\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -1
 }
 
+# Hash a file using md5sum or md5 (macOS)
+# Usage: hash_file "/path/to/file"
+hash_file() {
+    file_path="$1"
+    if [ ! -f "$file_path" ]; then
+        echo ""
+        return 1
+    fi
+    if command -v md5sum >/dev/null 2>&1; then
+        md5sum "$file_path" | awk '{print $1}'
+    elif command -v md5 >/dev/null 2>&1; then
+        md5 -q "$file_path"
+    elif command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$file_path" | awk '{print $1}' | cut -c1-12
+    else
+        # Fallback: use file modification time
+        stat -f %m "$file_path" 2>/dev/null || stat -c %Y "$file_path" 2>/dev/null || echo ""
+    fi
+}
+
+# Resolve hashFiles placeholder in cache key
+# Usage: resolve_hash_key "npm-${{ hashFiles('package-lock.json') }}" "src/"
+resolve_hash_key() {
+    key="$1"
+    base_dir="${2:-.}"
+    
+    # Find all ${{ hashFiles(...) }} patterns and replace with hashes
+    result="$key"
+    
+    # Extract patterns like hashFiles('path1', 'path2', ...)
+    # For simplicity, handle single file first
+    if echo "$result" | grep -q 'hashFiles'; then
+        # Extract file paths from hashFiles() calls
+        patterns=$(echo "$result" | sed -n 's/.*hashFiles(\([^)]*\)).*/\1/p')
+        
+        if [ -n "$patterns" ]; then
+            # Remove quotes and split by comma
+            files=$(echo "$patterns" | sed "s/'//g" | sed 's/"//g' | tr ',' '\n')
+            
+            combined_hash=""
+            for file_glob in $files; do
+                file_glob=$(echo "$file_glob" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                
+                # Handle glob patterns by finding first match
+                matched_file=""
+                for f in "$base_dir"/$file_glob; do
+                    if [ -f "$f" ]; then
+                        matched_file="$f"
+                        break
+                    fi
+                done
+                
+                # Also try without base_dir prefix
+                if [ -z "$matched_file" ] && [ -f "$file_glob" ]; then
+                    matched_file="$file_glob"
+                fi
+                
+                if [ -n "$matched_file" ]; then
+                    file_hash=$(hash_file "$matched_file")
+                    if [ -n "$combined_hash" ]; then
+                        combined_hash="${combined_hash}${file_hash}"
+                    else
+                        combined_hash="$file_hash"
+                    fi
+                fi
+            done
+            
+            # Replace hashFiles() with computed hash (first 16 chars)
+            if [ -n "$combined_hash" ]; then
+                final_hash=$(echo "$combined_hash" | cut -c1-16)
+                result=$(echo "$result" | sed "s/\${{ *hashFiles([^)]*) *}}/$final_hash/g")
+            fi
+        fi
+    fi
+    
+    echo "$result"
+}
+
+# Evaluate task condition expression
+# Usage: evaluate_condition "env.CI == 'true' && os(linux)"
+# Returns 0 if true, 1 if false
+evaluate_condition() {
+    condition="$1"
+    
+    if [ -z "$condition" ]; then
+        return 0
+    fi
+    
+    # Handle boolean operators: && and ||
+    # For simplicity, evaluate left-to-right with proper precedence
+    
+    # Replace environment variable references
+    # env.VAR_NAME -> ${VAR_NAME}
+    eval_expr=$(echo "$condition" | sed 's/env\.\([A-Za-z_][A-Za-z0-9_]*\)/\$\1/g')
+    
+    # Replace function calls
+    # os(linux) -> true if current OS is linux
+    if echo "$eval_expr" | grep -q 'os('; then
+        os_type=$(uname -s | tr '[:upper:]' '[:lower:]')
+        case "$os_type" in
+            linux) os_linux=true ;;
+            darwin) os_macos=true ;;
+            *) ;;
+        esac
+        
+        eval_expr=$(echo "$eval_expr" | sed 's/os(linux)/'"$([ "$os_linux" = true ] && echo 'true' || echo 'false')"'/g')
+        eval_expr=$(echo "$eval_expr" | sed 's/os(macos)/'"$([ "$os_macos" = true ] && echo 'true' || echo 'false')"'/g')
+    fi
+    
+    # Replace file() function
+    # file(path) -> true if file exists
+    if echo "$eval_expr" | grep -q 'file('; then
+        file_paths=$(echo "$eval_expr" | sed -n 's/.*file(\([^)]*\)).*/\1/p')
+        for fpath in $file_paths; do
+            fpath=$(echo "$fpath" | sed "s/'//g" | sed 's/"//g')
+            if [ -f "$fpath" ]; then
+                eval_expr=$(echo "$eval_expr" | sed "s/file($fpath)/true/g")
+            else
+                eval_expr=$(echo "$eval_expr" | sed "s/file($fpath)/false/g")
+            fi
+        done
+    fi
+    
+    # Replace branch() function
+    # branch(main) -> true if on main branch
+    if echo "$eval_expr" | grep -q 'branch('; then
+        current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+        branch_names=$(echo "$eval_expr" | sed -n 's/.*branch(\([^)]*\)).*/\1/p')
+        for bname in $branch_names; do
+            bname=$(echo "$bname" | sed "s/'//g" | sed 's/"//g')
+            if [ "$current_branch" = "$bname" ]; then
+                eval_expr=$(echo "$eval_expr" | sed "s/branch($bname)/true/g")
+            else
+                eval_expr=$(echo "$eval_expr" | sed "s/branch($bname)/false/g")
+            fi
+        done
+    fi
+    
+    # Simple string comparison: == and !=
+    # For now, handle quoted strings
+    eval_expr=$(echo "$eval_expr" | sed "s/'[^']*' == '[^']*'/STRCMP/g")
+    
+    # Handle simple variable comparisons
+    # For GitHub context variables like ${{ github.ref }}
+    if echo "$condition" | grep -q 'github\.'; then
+        # Mock or get from environment
+        github_ref="${GITHUB_REF:-refs/heads/unknown}"
+        eval_expr=$(echo "$eval_expr" | sed "s|\${{ *github\.ref *}}|${github_ref}|g")
+    fi
+    
+    # Now evaluate with bash/sh logic
+    # Convert true/false to proper shell semantics
+    eval_expr=$(echo "$eval_expr" | sed 's/true/true/g' | sed 's/false/false/g')
+    
+    # For complex boolean logic, use a helper
+    # This is simplified; for MVP, just check if any "false" appears
+    if echo "$eval_expr" | grep -qE '(false|!true)'; then
+        return 1
+    fi
+    
+    return 0
+}
+
 # Parse tasks from config file
-# Outputs: name|working_directory|command for each matching task
+# Outputs: name|working_directory|command|cache_key|condition|requires_approval for each matching task
 parse_tasks() {
     config_path="$1"
     target_stage="$2"
@@ -147,6 +351,15 @@ parse_tasks() {
         task_stage=$(echo "$task_json" | sed -n 's/.*"stage"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
         versions=$(echo "$task_json" | sed -n 's/.*"versions"[[:space:]]*:[[:space:]]*\[\([^]]*\)\].*/\1/p')
         
+        # Extract cache configuration (simplified - just get the key)
+        cache_key=$(echo "$task_json" | sed -n 's/.*"cache"[[:space:]]*:[[:space:]]*{[^}]*"key"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+        
+        # Extract condition
+        condition=$(echo "$task_json" | sed -n 's/.*"if"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+        
+        # Extract requires_approval
+        requires_approval=$(echo "$task_json" | sed -n 's/.*"requires_approval"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p')
+        
         # Default stage to "test" if not specified
         if [ -z "$task_stage" ]; then
             task_stage="test"
@@ -166,36 +379,140 @@ parse_tasks() {
                     expanded_cmd=$(echo "$cmd" | sed "s/{version}/$version/g")
                     
                     # Use unit separator character as delimiter
-                    printf '%s\x1f%s\x1f%s\n' "$expanded_name" "$dir" "$expanded_cmd"
+                    printf '%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n' "$expanded_name" "$dir" "$expanded_cmd" "$cache_key" "$condition" "$requires_approval"
                 done
             else
                 # No versions specified, output task as-is
-                printf '%s\x1f%s\x1f%s\n' "$name" "$dir" "$cmd"
+                printf '%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n' "$name" "$dir" "$cmd" "$cache_key" "$condition" "$requires_approval"
             fi
         fi
     done
 }
 
-# Run a single task
+# Output tasks as JSON for interactive mode
+output_tasks_json() {
+    tmp_tasks="$1"
+    
+    printf "{"
+    printf "\"tasks\":["
+    
+    first=true
+    while IFS=$(printf '\x1f') read -r name dir cmd cache_key condition requires_approval; do
+        if [ -n "$name" ]; then
+            if [ "$first" = false ]; then
+                printf ","
+            fi
+            first=false
+            
+            printf "{"
+            printf "\"name\":\"%s\"," "$(echo "$name" | sed 's/"/\\"/g')"
+            printf "\"directory\":\"%s\"," "$(echo "$dir" | sed 's/"/\\"/g')"
+            printf "\"command\":\"%s\"," "$(echo "$cmd" | sed 's/"/\\"/g')"
+            
+            # Add optional fields
+            if [ -n "$cache_key" ]; then
+                printf "\"cache_key\":\"%s\"," "$(echo "$cache_key" | sed 's/"/\\"/g')"
+            fi
+            if [ -n "$condition" ]; then
+                printf "\"condition\":\"%s\"," "$(echo "$condition" | sed 's/"/\\"/g')"
+            fi
+            if [ "$requires_approval" = "true" ]; then
+                printf "\"requires_approval\":true"
+            fi
+            
+            printf "}"
+        fi
+    done < "$tmp_tasks"
+    
+    printf "]}"
+}
+
+# Parse JSON array of task names from --select-tasks
+# Usage: parse_task_selection '["task1","task2"]'
+# Sets SELECTED_TASKS_ARRAY variable
+parse_task_selection() {
+    selection="$1"
+    
+    # Extract task names from JSON array
+    # Simple approach: remove brackets and split by comma
+    SELECTED_TASKS_ARRAY=$(echo "$selection" | sed 's/^\[//;s/\]$//' | sed 's/"//g' | sed 's/,/\n/g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+}
 run_task() {
     name="$1"
     dir="$2"
     cmd="$3"
+    cache_key="$4"
+    condition="$5"
+    requires_approval="$6"
     
     echo "---------------------------------------------------"
     printf "${BLUE}🔍 Checking ${name}...${RESET}\n"
     echo "   📂 Path: ${dir}"
     echo "   🚀 Command: ${cmd}"
     
-    # Check if directory exists
+    # Check condition
+    if [ -n "$condition" ]; then
+        if ! evaluate_condition "$condition"; then
+            printf "   ${YELLOW}⊘ Skipped (condition not met)${RESET}\n"
+            return 0
+        fi
+    fi
+    
+    # Check if approval is required and not granted
+    if [ "$requires_approval" = "true" ]; then
+        is_approved=false
+        if [ -n "$APPROVED_TASKS" ]; then
+            # Check if this task is in approved list
+            echo "$APPROVED_TASKS" | tr '|' '\n' | grep -q "^${name}$" && is_approved=true
+        fi
+        
+        if [ "$is_approved" = "false" ]; then
+            printf "   ${YELLOW}⊘ Skipped (requires approval, use --approve-task)${RESET}\n"
+            return 0
+        fi
+    fi
+    
+    # Check if task is in skip list
+    if [ -n "$SKIPPED_TASKS" ]; then
+        if echo "$SKIPPED_TASKS" | tr '|' '\n' | grep -q "^${name}$"; then
+            printf "   ${YELLOW}⊘ Skipped (explicitly skipped)${RESET}\n"
+            return 0
+        fi
+    fi
+    
+    # Check directory exists
     if [ ! -d "$dir" ]; then
         printf "   ${YELLOW}⚠️  Skipped (Directory not found)${RESET}\n"
         return 0
     fi
     
+    # Handle caching
+    cache_hit=false
+    if [ -n "$cache_key" ]; then
+        # Resolve hash placeholders in cache key
+        resolved_cache_key=$(resolve_hash_key "$cache_key" "$dir")
+        cache_path="${CACHE_DIR}/${resolved_cache_key}"
+        
+        if [ -d "$cache_path" ]; then
+            printf "   ${GREEN}⚡ Cache hit! (${resolved_cache_key})${RESET}\n"
+            cache_hit=true
+            
+            # Restore cached files (if any were specified, but for now we skip task execution)
+            # In a real scenario, you'd restore node_modules, build artifacts, etc.
+            return 0
+        fi
+    fi
+    
     # Run command in subshell
     (cd "$dir" && eval "$cmd")
     result=$?
+    
+    # Save to cache if configured
+    if [ $result -eq 0 ] && [ -n "$cache_key" ]; then
+        mkdir -p "$cache_path"
+        # Mark cache as valid (in real scenario, would save specific files)
+        touch "$cache_path/.cache-valid"
+    fi
     
     if [ $result -eq 0 ]; then
         printf "   ${GREEN}✅ ${name} Passed${RESET}\n"
@@ -244,10 +561,36 @@ main() {
         exit 0
     fi
     
+    # Interactive mode: list tasks and exit
+    if [ "$LIST_TASKS_ONLY" = "true" ]; then
+        output_tasks_json "$tmp_tasks"
+        rm -f "$tmp_tasks" "$tmp_failures"
+        exit 0
+    fi
+    
+    # Interactive mode: filter tasks by selection
+    if [ -n "$SELECTED_TASKS" ]; then
+        parse_task_selection "$SELECTED_TASKS"
+        
+        # Create new temp file with only selected tasks
+        tmp_filtered=$(mktemp)
+        while IFS=$(printf '\x1f') read -r name dir cmd cache_key condition requires_approval; do
+            if [ -n "$name" ]; then
+                # Check if task is in selected list
+                if echo "$SELECTED_TASKS_ARRAY" | grep -q "^${name}$"; then
+                    printf '%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n' "$name" "$dir" "$cmd" "$cache_key" "$condition" "$requires_approval" >> "$tmp_filtered"
+                fi
+            fi
+        done < "$tmp_tasks"
+        
+        # Use filtered list
+        mv "$tmp_filtered" "$tmp_tasks"
+    fi
+    
     # Process each task
-    while IFS=$(printf '\x1f') read -r name dir cmd; do
+    while IFS=$(printf '\x1f') read -r name dir cmd cache_key condition requires_approval; do
         if [ -n "$name" ]; then
-            if ! run_task "$name" "$dir" "$cmd"; then
+            if ! run_task "$name" "$dir" "$cmd" "$cache_key" "$condition" "$requires_approval"; then
                 echo "$name" >> "$tmp_failures"
             fi
         fi

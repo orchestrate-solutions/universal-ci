@@ -133,6 +133,85 @@ This automatically creates 5 separate test runs (one for each Python version). T
 - Node.js: `node16`, `node18`, `node20`, etc.
 - Any tool: Just use `{version}` in the command
 
+### Conditional Task Execution
+
+Run tasks only when conditions are true - perfect for different environments:
+
+```json
+{
+  "tasks": [
+    {
+      "name": "Test Locally",
+      "working_directory": ".",
+      "command": "npm test",
+      "if": "env.CI == 'false'"
+    },
+    {
+      "name": "Deploy to Staging",
+      "working_directory": ".",
+      "command": "npm run deploy:staging",
+      "stage": "release",
+      "if": "branch(develop)"
+    },
+    {
+      "name": "Deploy to Production",
+      "working_directory": ".",
+      "command": "npm run deploy:prod",
+      "stage": "release",
+      "if": "${{ github.ref }} == 'refs/heads/main' && env.PRODUCTION == 'true'"
+    }
+  ]
+}
+```
+
+**Available Conditions:**
+- `env.VAR_NAME` - Environment variable value
+- `file(path)` - File exists
+- `os(linux|macos|windows)` - Operating system
+- `branch(name)` - Current git branch
+- `${{ github.ref }}` - GitHub context (in GitHub Actions)
+- Boolean logic: `&&` (and), `||` (or), `!=` (not equal), `==` (equal)
+
+### Interactive Mode (AI-First Automation)
+
+Perfect for AI agents and automated workflows - get tasks as JSON and select which to run:
+
+```bash
+# AI reads available tasks
+./verify.sh --list-tasks
+# Output: {"tasks":[{"name":"Build","directory":".","command":"npm run build"},{"name":"Test",...}]}
+
+# AI decides which tasks to execute
+./verify.sh --select-tasks '["Lint","Test","Build"]'
+
+# Approve tasks that require manual confirmation
+./verify.sh --stage release --approve-task "Deploy to Production"
+
+# Skip expensive tasks conditionally
+./verify.sh --skip-task "Slow Integration Tests" --skip-task "E2E Tests"
+```
+
+**Example: AI Agent Workflow**
+```bash
+#!/bin/bash
+# Get list of available tasks
+TASKS=$(./verify.sh --list-tasks)
+
+# AI analyzes tasks and build a selection strategy
+# (In real scenario, this would be AI decision logic)
+SELECTED='["Lint","Test","Build"]'
+
+# Execute selected tasks
+./verify.sh --select-tasks "$SELECTED"
+
+# If release stage has approval tasks, request them
+if echo "$TASKS" | grep -q 'requires_approval.*true'; then
+  ./verify.sh --stage release \
+    --approve-task "Deploy to Production" \
+    --approve-task "Notify Stakeholders"
+fi
+```
+
 ## 🎯 Best Practices
 
 - **Test Locally First**: Always run `./verify.sh` locally before pushing

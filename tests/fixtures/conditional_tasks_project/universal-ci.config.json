@@ -1,0 +1,31 @@
+{
+  "tasks": [
+    {
+      "name": "Always Run",
+      "working_directory": ".",
+      "command": "echo 'This task always runs'",
+      "stage": "test"
+    },
+    {
+      "name": "Run on Non-CI",
+      "working_directory": ".",
+      "command": "echo 'Running locally (not in CI)'",
+      "stage": "test",
+      "if": "env.CI == 'false' || env.CI == ''"
+    },
+    {
+      "name": "Run if Deploy Flag Exists",
+      "working_directory": ".",
+      "command": "echo 'Deploy flag found!'",
+      "stage": "test",
+      "if": "file(.deploy-flag)"
+    },
+    {
+      "name": "Conditional with Boolean Logic",
+      "working_directory": ".",
+      "command": "echo 'Complex condition passed'",
+      "stage": "release",
+      "if": "(env.RELEASE == 'true' && file(Makefile)) || os(macos)"
+    }
+  ]
+}

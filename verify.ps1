@@ -6,6 +6,11 @@ param(
     [string]$Config = "universal-ci.config.json",
     [ValidateSet("test", "release")]
     [string]$Stage = "test",
+    [switch]$Interactive,
+    [switch]$ListTasks,
+    [string]$SelectTasks = "",
+    [string[]]$ApproveTasks = @(),
+    [string[]]$SkipTasks = @(),
     [switch]$Help
 )
 
@@ -27,9 +32,14 @@ function Show-Help {
     Write-Host "Usage: .\verify.ps1 [OPTIONS]"
     Write-Host ""
     Write-Host "Options:"
-    Write-Host "  -Config <path>    Path to config file (default: universal-ci.config.json)"
-    Write-Host "  -Stage <stage>    Stage to run: test or release (default: test)"
-    Write-Host "  -Help             Show this help message"
+    Write-Host "  -Config <path>       Path to config file (default: universal-ci.config.json)"
+    Write-Host "  -Stage <stage>       Stage to run: test or release (default: test)"
+    Write-Host "  -Interactive         Interactive mode (requires -ListTasks or task selection)"
+    Write-Host "  -ListTasks           Output all tasks as JSON (use with -Interactive)"
+    Write-Host "  -SelectTasks <json>  JSON array of task names to run"
+    Write-Host "  -ApproveTasks <names> Approve tasks requiring approval (array)"
+    Write-Host "  -SkipTasks <names>   Skip tasks by name (array)"
+    Write-Host "  -Help                Show this help message"
     exit 0
 }
 
@@ -65,11 +75,163 @@ function Find-ConfigFile {
     return $null
 }
 
+function Get-FileHash256 {
+    param([string]$FilePath)
+    
+    if (-not (Test-Path $FilePath)) {
+        return ""
+    }
+    
+    try {
+        $hash = (Get-FileHash -Path $FilePath -Algorithm SHA256 -ErrorAction Stop).Hash
+        return $hash.Substring(0, [Math]::Min(16, $hash.Length))
+    }
+    catch {
+        # Fallback to MD5
+        try {
+            $hash = (Get-FileHash -Path $FilePath -Algorithm MD5 -ErrorAction Stop).Hash
+            return $hash.Substring(0, [Math]::Min(16, $hash.Length))
+        }
+        catch {
+            return ""
+        }
+    }
+}
+
+function Resolve-HashKey {
+    param(
+        [string]$Key,
+        [string]$BaseDir = "."
+    )
+    
+    $result = $Key
+    
+    # Find all ${{ hashFiles(...) }} patterns
+    if ($result -match 'hashFiles') {
+        # Extract file paths - simplified for single files
+        $pattern = '\{\{\s*hashFiles\([''"]([^''")]+)[''"]\)\s*\}\}'
+        
+        if ($result -match $pattern) {
+            $filePath = $matches[1]
+            
+            # Try to find the file
+            $fullPath = Join-Path $BaseDir $filePath
+            if (-not (Test-Path $fullPath)) {
+                $fullPath = $filePath
+            }
+            
+            if (Test-Path $fullPath) {
+                $hash = Get-FileHash256 -FilePath $fullPath
+                if ($hash) {
+                    $result = $result -replace '\{\{\s*hashFiles\([^)]+\)\s*\}\}', $hash
+                }
+            }
+        }
+    }
+    
+    return $result
+}
+
+function Evaluate-Condition {
+    param([string]$Condition)
+    
+    if ([string]::IsNullOrEmpty($Condition)) {
+        return $true
+    }
+    
+    $expr = $Condition
+    
+    # Replace env.VAR_NAME with environment variable values
+    $expr = [regex]::Replace($expr, 'env\.([A-Za-z_][A-Za-z0-9_]*)', {
+        param($match)
+        $varName = $match.Groups[1].Value
+        $value = [Environment]::GetEnvironmentVariable($varName)
+        if ($null -eq $value) { "null" } else { "`"$value`"" }
+    })
+    
+    # Replace os(type) function
+    if ($expr -match 'os\(') {
+        $osType = if ($IsWindows) { "windows" } elseif ($IsMacOS) { "macos" } elseif ($IsLinux) { "linux" } else { "unknown" }
+        $expr = $expr -replace 'os\(windows\)', ($osType -eq "windows" ? "true" : "false")
+        $expr = $expr -replace 'os\(macos\)', ($osType -eq "macos" ? "true" : "false")
+        $expr = $expr -replace 'os\(linux\)', ($osType -eq "linux" ? "true" : "false")
+    }
+    
+    # Replace file(path) function
+    if ($expr -match 'file\(') {
+        $pattern = 'file\([''"]?([^''")]+)[''"]?\)'
+        $expr = [regex]::Replace($expr, $pattern, {
+            param($match)
+            $path = $match.Groups[1].Value
+            (Test-Path $path) ? "true" : "false"
+        })
+    }
+    
+    # Replace branch(name) function
+    if ($expr -match 'branch\(') {
+        try {
+            $currentBranch = git rev-parse --abbrev-ref HEAD 2>$null
+            if ($null -eq $currentBranch) { $currentBranch = "unknown" }
+        } catch {
+            $currentBranch = "unknown"
+        }
+        
+        $pattern = 'branch\([''"]?([^''")]+)[''"]?\)'
+        $expr = [regex]::Replace($expr, $pattern, {
+            param($match)
+            $branch = $match.Groups[1].Value
+            ($currentBranch -eq $branch) ? "true" : "false"
+        })
+    }
+    
+    # Handle github context variables
+    $expr = $expr -replace '\$\{\{\s*github\.ref\s*\}\}', $env:GITHUB_REF
+    
+    # Simple evaluation: if contains "false", return false
+    if ($expr -match '\bfalse\b') {
+        return $false
+    }
+    
+    return $true
+}
+
+function Convert-TasksToJson {
+    param([array]$Tasks)
+    
+    $jsonTasks = @()
+    foreach ($task in $Tasks) {
+        $jsonTask = @{
+            name = $task.name
+            directory = $task.working_directory
+            command = $task.command
+        }
+        
+        if ($task.cache_key) {
+            $jsonTask.cache_key = $task.cache_key
+        }
+        if ($task.condition) {
+            $jsonTask.condition = $task.condition
+        }
+        if ($task.requires_approval -eq $true) {
+            $jsonTask.requires_approval = $true
+        }
+        
+        $jsonTasks += $jsonTask
+    }
+    
+    return $jsonTasks | ConvertTo-Json -Compress
+}
+
 function Invoke-Task {
     param(
         [string]$Name,
         [string]$WorkingDirectory,
-        [string]$Command
+        [string]$Command,
+        [string]$CacheKey = "",
+        [string]$Condition = "",
+        [bool]$RequiresApproval = $false,
+        [string[]]$ApprovedTasks = @(),
+        [string[]]$SkippedTasks = @()
     )
     
     Write-Host "---------------------------------------------------"
@@ -77,17 +239,46 @@ function Invoke-Task {
     Write-Host "   📂 Path: ${WorkingDirectory}"
     Write-Host "   🚀 Command: ${Command}"
     
-    # Check if directory exists
+    # Check condition
+    if ($Condition -and -not (Evaluate-Condition $Condition)) {
+        Write-Host "   ${Yellow}⊘ Skipped (condition not met)${Reset}"
+        return $true
+    }
+    
+    # Check approval
+    if ($RequiresApproval -and $Name -notin $ApprovedTasks) {
+        Write-Host "   ${Yellow}⊘ Skipped (requires approval, use -ApproveTasks)${Reset}"
+        return $true
+    }
+    
+    # Check if skipped
+    if ($Name -in $SkippedTasks) {
+        Write-Host "   ${Yellow}⊘ Skipped (explicitly skipped)${Reset}"
+        return $true
+    }
+    
+    # Check directory exists
     if (-not (Test-Path $WorkingDirectory -PathType Container)) {
         Write-Host "   ${Yellow}⚠️  Skipped (Directory not found)${Reset}"
         return $true
+    }
+    
+    # Handle caching
+    if ($CacheKey) {
+        $resolvedCacheKey = Resolve-HashKey -Key $CacheKey -BaseDir $WorkingDirectory
+        $cachePath = Join-Path ".universal-ci-cache" $resolvedCacheKey
+        
+        if (Test-Path $cachePath) {
+            Write-Host "   ${Green}⚡ Cache hit! (${resolvedCacheKey})${Reset}"
+            return $true
+        }
     }
     
     # Run command
     try {
         Push-Location $WorkingDirectory
         
-        # Execute command based on platform
+        # Execute command
         if ($IsWindows -or $env:OS -match "Windows") {
             $result = cmd /c $Command 2>&1
         } else {
@@ -100,6 +291,16 @@ function Invoke-Task {
         $result | ForEach-Object { Write-Host $_ }
         
         if ($exitCode -eq 0) {
+            # Save to cache if configured
+            if ($CacheKey) {
+                $resolvedCacheKey = Resolve-HashKey -Key $CacheKey -BaseDir $WorkingDirectory
+                $cachePath = Join-Path ".universal-ci-cache" $resolvedCacheKey
+                if (-not (Test-Path $cachePath)) {
+                    New-Item -ItemType Directory -Path $cachePath -Force | Out-Null
+                    New-Item -Path (Join-Path $cachePath ".cache-valid") -ItemType File -Force | Out-Null
+                }
+            }
+            
             Write-Host "   ${Green}✅ ${Name} Passed${Reset}"
             return $true
         } else {
@@ -172,6 +373,9 @@ function Main {
                         working_directory = $task.working_directory
                         command = $expandedCommand
                         stage = $taskStage
+                        cache_key = if ($task.cache_key) { $task.cache_key } else { "" }
+                        condition = if ($task.condition) { $task.condition } else { "" }
+                        requires_approval = if ($task.requires_approval) { $task.requires_approval } else { $false }
                     }
                 }
             } else {
@@ -181,6 +385,9 @@ function Main {
                     working_directory = $task.working_directory
                     command = $task.command
                     stage = $taskStage
+                    cache_key = if ($task.cache_key) { $task.cache_key } else { "" }
+                    condition = if ($task.condition) { $task.condition } else { "" }
+                    requires_approval = if ($task.requires_approval) { $task.requires_approval } else { $false }
                 }
             }
         }
@@ -191,10 +398,36 @@ function Main {
         exit 0
     }
     
+    # Interactive mode: list tasks and exit
+    if ($ListTasks) {
+        Convert-TasksToJson -Tasks $expandedTasks
+        exit 0
+    }
+    
+    # Interactive mode: filter tasks by selection
+    if ($SelectTasks) {
+        $selectedArray = $SelectTasks | ConvertFrom-Json
+        $expandedTasks = $expandedTasks | Where-Object { $_.name -in $selectedArray }
+        
+        if ($expandedTasks.Count -eq 0) {
+            Write-Host "   ${Yellow}No tasks selected${Reset}"
+            exit 0
+        }
+    }
+    
     # Run tasks
     $failures = @()
     foreach ($task in $expandedTasks) {
-        $success = Invoke-Task -Name $task.name -WorkingDirectory $task.working_directory -Command $task.command
+        $success = Invoke-Task `
+            -Name $task.name `
+            -WorkingDirectory $task.working_directory `
+            -Command $task.command `
+            -CacheKey $task.cache_key `
+            -Condition $task.condition `
+            -RequiresApproval $task.requires_approval `
+            -ApprovedTasks $ApproveTasks `
+            -SkippedTasks $SkipTasks
+            
         if (-not $success) {
             $failures += $task.name
         }

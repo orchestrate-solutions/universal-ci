@@ -1,0 +1,29 @@
+{
+  "tasks": [
+    {
+      "name": "Build",
+      "working_directory": ".",
+      "command": "echo 'Building project...'",
+      "stage": "test"
+    },
+    {
+      "name": "Test",
+      "working_directory": ".",
+      "command": "echo 'Running tests...'",
+      "stage": "test"
+    },
+    {
+      "name": "Lint",
+      "working_directory": ".",
+      "command": "echo 'Checking code style...'",
+      "stage": "test"
+    },
+    {
+      "name": "Deploy to Production",
+      "working_directory": ".",
+      "command": "echo 'Deploying to production...'",
+      "stage": "release",
+      "requires_approval": true
+    }
+  ]
+}

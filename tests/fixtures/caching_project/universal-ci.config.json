@@ -1,0 +1,20 @@
+{
+  "tasks": [
+    {
+      "name": "Install Dependencies",
+      "working_directory": ".",
+      "command": "echo 'Installing dependencies...' && mkdir -p node_modules && touch node_modules/.installed",
+      "stage": "test",
+      "cache": {
+        "key": "npm-${{ hashFiles('package-lock.json') }}",
+        "paths": ["node_modules"]
+      }
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "echo 'Running tests...' && exit 0",
+      "stage": "test"
+    }
+  ]
+}
