@@ -1,0 +1,22 @@
+{
+  "tasks": [
+    {
+      "name": "Compile",
+      "working_directory": ".",
+      "command": "sbt compile || ./gradlew compileScala || gradlew compileScala",
+      "stage": "test"
+    },
+    {
+      "name": "Run Tests",
+      "working_directory": ".",
+      "command": "sbt test || ./gradlew test || gradlew test",
+      "stage": "test"
+    },
+    {
+      "name": "Package",
+      "working_directory": ".",
+      "command": "sbt package || ./gradlew assemble || gradlew assemble",
+      "stage": "release"
+    }
+  ]
+}
