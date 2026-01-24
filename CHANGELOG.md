@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for 16+ programming languages
 - Caching with hash-based keys
 
+## [1.2.4] - 2026-01-24
+
+### Fixed
+- **Critical:** Fixed JSON parsing in `run-ci.sh` to correctly handle commands containing pipe characters (`|`).
+- Updated task splitter to use ASCII Record Separator (`\036`) instead of string splitting, preventing command fragmentation.
+- Fixed "Directory not found" errors in CI when using piped commands. 
+
+
 ## [1.2.3] - 2026-01-19
 
 ### Added

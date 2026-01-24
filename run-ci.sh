@@ -339,8 +339,9 @@ parse_tasks() {
     tasks_content=$(echo "$config_content" | sed 's/.*"tasks"[[:space:]]*:[[:space:]]*\[//' | sed 's/\][[:space:]]*}[[:space:]]*//')
     
     # Split by },{ pattern to get individual tasks, then process each
-    # Add newlines after each task object
-    echo "$tasks_content" | sed 's/}[[:space:]]*,[[:space:]]*{/}|TASK_SEP|{/g' | tr '|' '\n' | grep -v "^TASK_SEP$" | while read -r task_json; do
+    # Use Record Separator (0x1E) as delimiter to allow pipes in commands
+    RS=$(printf '\036')
+    echo "$tasks_content" | sed "s/}[[:space:]]*,[[:space:]]*{/}$RS{/g" | tr "$RS" '\n' | while read -r task_json; do
         # Skip empty lines
         [ -z "$task_json" ] && continue
         
