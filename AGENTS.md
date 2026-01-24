@@ -2,6 +2,10 @@
 
 Universal CI runs consistently across different CI agents and platforms. The same configuration works everywhere - local development, cloud CI, containers, and more.
 
+**Every push is verified twice:**
+1. **Locally** via pre-push hook (before code leaves your machine)
+2. **Remotely** via GitHub Actions (after code reaches the repository)
+
 ## 🏠 Local Agent (Development)
 
 Run verification locally before pushing changes:
