@@ -214,7 +214,7 @@ if [[ "$SHOULD_BUMP" == "true" ]]; then
       
       # Commit
       git add "$VERSION_FILE" "$CHANGELOG_FILE" package.json 2>/dev/null || true
-      git commit -m "chore: release v${NEW_VERSION} [skip ci]" --no-verify >/dev/null 2>&1
+      git commit -m "chore: release v${NEW_VERSION}" --no-verify >/dev/null 2>&1
       
       log_success "Committed release v${NEW_VERSION}"
       

@@ -49,6 +49,62 @@ echo "New version: $NEW_VERSION"
 # Get today's date
 DATE=$(date +%Y-%m-%d)
 
+# Parse recent commits to auto-populate changelog
+get_commits_since_last_tag() {
+    local last_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+    if [[ -z "$last_tag" ]]; then
+        # No tags, get all commits
+        git log --pretty=format:"%s" HEAD
+    else
+        # Get commits since last tag
+        git log --pretty=format:"%s" "${last_tag}..HEAD"
+    fi
+}
+
+# Parse commits into changelog categories
+parse_commits() {
+    local added=""
+    local changed=""
+    local fixed=""
+    
+    while IFS= read -r commit; do
+        # Skip release commits
+        if [[ "$commit" =~ ^chore:\ release ]]; then
+            continue
+        fi
+        
+        # Extract commit message (remove prefixes)
+        local msg="${commit}"
+        
+        # Categorize by conventional commit type
+        if [[ "$commit" =~ ^feat(\([^)]+\))?:\ (.+)$ ]]; then
+            added="${added}- ${BASH_REMATCH[2]}\n"
+        elif [[ "$commit" =~ ^fix(\([^)]+\))?:\ (.+)$ ]]; then
+            fixed="${fixed}- ${BASH_REMATCH[2]}\n"
+        elif [[ "$commit" =~ ^(refactor|perf|style|docs|chore)(\([^)]+\))?:\ (.+)$ ]]; then
+            changed="${changed}- ${BASH_REMATCH[3]}\n"
+        else
+            # No conventional commit prefix, add to Changed
+            changed="${changed}- ${msg}\n"
+        fi
+    done <<< "$(get_commits_since_last_tag)"
+    
+    # Default to empty strings if nothing found
+    [[ -z "$added" ]] && added="- \n"
+    [[ -z "$changed" ]] && changed="- \n"
+    [[ -z "$fixed" ]] && fixed="- \n"
+    
+    echo -e "ADDED:\n${added}"
+    echo -e "CHANGED:\n${changed}"
+    echo -e "FIXED:\n${fixed}"
+}
+
+# Get commit-based changelog entries
+CHANGELOG_DATA=$(parse_commits)
+CHANGELOG_ADDED=$(echo "$CHANGELOG_DATA" | sed -n '/^ADDED:/,/^CHANGED:/p' | sed '1d;$d')
+CHANGELOG_CHANGED=$(echo "$CHANGELOG_DATA" | sed -n '/^CHANGED:/,/^FIXED:/p' | sed '1d;$d')
+CHANGELOG_FIXED=$(echo "$CHANGELOG_DATA" | sed -n '/^FIXED:/,$p' | sed '1d')
+
 # Update VERSION file
 echo "$NEW_VERSION" > "$VERSION_FILE"
 
@@ -58,18 +114,18 @@ TEMP_CHANGELOG=$(mktemp)
     # Copy header and unreleased section
     head -n 14 "$CHANGELOG_FILE"
     
-    # Add new version section
+    # Add new version section with auto-populated content
     echo ""
     echo "## [$NEW_VERSION] - $DATE"
     echo ""
     echo "### Added"
-    echo "- "
+    echo "$CHANGELOG_ADDED"
     echo ""
     echo "### Changed"
-    echo "- "
+    echo "$CHANGELOG_CHANGED"
     echo ""
     echo "### Fixed"
-    echo "- "
+    echo "$CHANGELOG_FIXED"
     echo ""
     
     # Copy rest of file (skip header)
@@ -92,14 +148,16 @@ fi
 
 echo ""
 echo "✅ Version bumped: $CURRENT_VERSION → $NEW_VERSION"
+echo "✅ CHANGELOG auto-populated from git commits"
 echo ""
 echo "Next steps:"
-echo "  1. Edit CHANGELOG.md to describe changes under [$NEW_VERSION]"
+echo "  1. Review CHANGELOG.md to verify auto-generated entries under [$NEW_VERSION]"
 echo "  2. git add VERSION CHANGELOG.md package.json"
 echo "  3. git commit -m \"release: v$NEW_VERSION\""
 echo "  4. git push origin main"
 echo ""
 echo "The GitHub Actions workflow will then:"
+echo "  - Run CI verification on the release commit"
 echo "  - Publish to npm"
 echo "  - Create GitHub release"
 echo "  - Tag the commit"

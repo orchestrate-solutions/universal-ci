@@ -15,14 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.3.1] - 2026-01-24
 
-### Added
-- 
-
-### Changed
-- 
-
 ### Fixed
-- 
+- **GitHub Actions CI:** Fixed reusable workflow to fetch correct script (`run-ci.sh` instead of non-existent `verify.sh`), resolving CI execution failures in GitHub Actions.
+- **Documentation:** Properly documented v1.3.0 changes in CHANGELOG that were missing from previous release. 
 
 
 ## [1.3.0] - 2026-01-24
