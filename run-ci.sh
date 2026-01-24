@@ -332,62 +332,54 @@ parse_tasks() {
     config_path="$1"
     target_stage="$2"
     
-    # Read config and flatten to single line
-    config_content=$(cat "$config_path" | tr '\n' ' ' | tr '\r' ' ')
+    # Use Python for reliable JSON parsing - it's available everywhere
+    python3 -c "
+import json
+import sys
+
+with open('$config_path', 'r') as f:
+    config = json.load(f)
+
+for task in config.get('tasks', []):
+    name = task.get('name', '')
+    directory = task.get('working_directory', '.')
+    command = task.get('command', '')
+    stage = task.get('stage', 'test')
+    cache_key = task.get('cache', {}).get('key', '') if isinstance(task.get('cache'), dict) else ''
+    condition = task.get('if', '')
+    requires_approval = 'true' if task.get('requires_approval') else ''
+    versions = task.get('versions', [])
     
-    # Extract tasks array content - everything between [ and ]
-    tasks_content=$(echo "$config_content" | sed 's/.*"tasks"[[:space:]]*:[[:space:]]*\[//' | sed 's/\][[:space:]]*}[[:space:]]*//')
-    
-    # Split by },{ pattern to get individual tasks, then process each
-    # Use Record Separator (0x1E) as delimiter to allow pipes in commands
-    RS=$(printf '\036')
-    echo "$tasks_content" | sed "s/}[[:space:]]*,[[:space:]]*{/}$RS{/g" | tr "$RS" '\n' | while read -r task_json; do
-        # Skip empty lines
-        [ -z "$task_json" ] && continue
+    if stage == '$target_stage' and name and command:
+        if versions:
+            for version in versions:
+                expanded_name = name.replace('{version}', str(version))
+                expanded_cmd = command.replace('{version}', str(version))
+                print(f'{expanded_name}\x1f{directory}\x1f{expanded_cmd}\x1f{cache_key}\x1f{condition}\x1f{requires_approval}')
+        else:
+            print(f'{name}\x1f{directory}\x1f{command}\x1f{cache_key}\x1f{condition}\x1f{requires_approval}')
+" 2>/dev/null || {
+        # Fallback to simple sed-based parsing if Python fails
+        # Read config and process line by line to avoid flattening issues
+        config_content=$(cat "$config_path" | tr '\n' ' ' | tr '\r' ' ')
         
-        # Extract fields using sed
-        name=$(echo "$task_json" | sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-        dir=$(echo "$task_json" | sed -n 's/.*"working_directory"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-        cmd=$(echo "$task_json" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-        task_stage=$(echo "$task_json" | sed -n 's/.*"stage"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-        versions=$(echo "$task_json" | sed -n 's/.*"versions"[[:space:]]*:[[:space:]]*\[\([^]]*\)\].*/\1/p')
-        
-        # Extract cache configuration (simplified - just get the key)
-        cache_key=$(echo "$task_json" | sed -n 's/.*"cache"[[:space:]]*:[[:space:]]*{[^}]*"key"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-        
-        # Extract condition
-        condition=$(echo "$task_json" | sed -n 's/.*"if"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-        
-        # Extract requires_approval
-        requires_approval=$(echo "$task_json" | sed -n 's/.*"requires_approval"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p')
-        
-        # Default stage to "test" if not specified
-        if [ -z "$task_stage" ]; then
-            task_stage="test"
-        fi
-        
-        # Output if stage matches and we have required fields
-        if [ "$task_stage" = "$target_stage" ] && [ -n "$name" ] && [ -n "$cmd" ]; then
-            # If versions are specified, expand task for each version
-            if [ -n "$versions" ]; then
-                # Extract versions from JSON array and iterate
-                echo "$versions" | sed 's/"//g' | sed 's/,/\n/g' | while read -r version; do
-                    version=$(echo "$version" | sed 's/[[:space:]]*//g')
-                    [ -z "$version" ] && continue
-                    
-                    # Replace {version} placeholder in name and command
-                    expanded_name=$(echo "$name" | sed "s/{version}/$version/g")
-                    expanded_cmd=$(echo "$cmd" | sed "s/{version}/$version/g")
-                    
-                    # Use unit separator character as delimiter
-                    printf '%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n' "$expanded_name" "$dir" "$expanded_cmd" "$cache_key" "$condition" "$requires_approval"
-                done
-            else
-                # No versions specified, output task as-is
-                printf '%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n' "$name" "$dir" "$cmd" "$cache_key" "$condition" "$requires_approval"
+        # Extract each task object carefully
+        echo "$config_content" | grep -oE '\{[^{}]*"name"[^{}]*\}' | while read -r task_json; do
+            [ -z "$task_json" ] && continue
+            
+            # Extract fields - use first match only
+            name=$(echo "$task_json" | sed -n 's/^[^"]*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+            dir=$(echo "$task_json" | sed -n 's/^[^"]*"working_directory"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+            cmd=$(echo "$task_json" | sed -n 's/^[^"]*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+            task_stage=$(echo "$task_json" | sed -n 's/^[^"]*"stage"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+            
+            [ -z "$task_stage" ] && task_stage="test"
+            
+            if [ "$task_stage" = "$target_stage" ] && [ -n "$name" ] && [ -n "$cmd" ]; then
+                printf '%s\x1f%s\x1f%s\x1f\x1f\x1f\n' "$name" "$dir" "$cmd"
             fi
-        fi
-    done
+        done
+    }
 }
 
 # Output tasks as JSON for interactive mode

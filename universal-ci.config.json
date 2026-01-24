@@ -1,39 +1,49 @@
 {
   "tasks": [
     {
+      "name": "Hello World Canary",
+      "working_directory": ".",
+      "command": "echo 'CANARY_OUTPUT_VERIFIED' && test -f run-ci.sh"
+    },
+    {
+      "name": "Verify JSON Parsing Works",
+      "working_directory": ".",
+      "command": "./run-ci.sh --list-tasks 2>/dev/null | grep -q 'tasks' && echo 'JSON_PARSING_OK'"
+    },
+    {
       "name": "Test Shell Script - Python Fixture",
       "working_directory": "tests/fixtures/python_project",
-      "command": "../../../run-ci.sh"
+      "command": "../../../run-ci.sh 2>&1 | grep -q 'ALL SYSTEMS GO' && echo 'FIXTURE_PASSED'"
     },
     {
       "name": "Test Shell Script - JS Fixture",
       "working_directory": "tests/fixtures/js_project",
-      "command": "../../../run-ci.sh"
+      "command": "../../../run-ci.sh 2>&1 | grep -q 'ALL SYSTEMS GO' && echo 'FIXTURE_PASSED'"
     },
     {
       "name": "Test Shell Script - Multi-Stage Test",
       "working_directory": "tests/fixtures/multi_stage_project",
-      "command": "../../../run-ci.sh --stage test"
+      "command": "../../../run-ci.sh --stage test 2>&1 | grep -q 'ALL SYSTEMS GO' && echo 'STAGE_TEST_OK'"
     },
     {
       "name": "Test Shell Script - Multi-Stage Release",
       "working_directory": "tests/fixtures/multi_stage_project",
-      "command": "../../../run-ci.sh --stage release"
+      "command": "../../../run-ci.sh --stage release 2>&1 | grep -q 'ALL SYSTEMS GO' && echo 'STAGE_RELEASE_OK'"
     },
     {
-      "name": "Test Shell Script - Help Output",
+      "name": "Test Help Output Contains Banner",
       "working_directory": ".",
-      "command": "./run-ci.sh --help | grep 'Universal CI Verifier'"
+      "command": "./run-ci.sh --help 2>&1 | grep -q 'Universal CI Verifier' && echo 'HELP_VERIFIED'"
     },
     {
-      "name": "Test Shell Script - Missing Config Error",
+      "name": "Test Error Handling",
       "working_directory": ".",
-      "command": "./run-ci.sh --config nonexistent.json 2>&1 | grep 'not found'"
+      "command": "./run-ci.sh --config nonexistent.json 2>&1 | grep -q 'not found' && echo 'ERROR_HANDLING_OK'"
     },
     {
-      "name": "Test Python Script Still Works",
+      "name": "Test Python Script Compatibility",
       "working_directory": "tests/fixtures/python_project",
-      "command": "python3 ../../../universal-ci-testing-env/verify.py"
+      "command": "python3 ../../../universal-ci-testing-env/verify.py 2>&1 | grep -q 'ALL SYSTEMS GO' && echo 'PYTHON_COMPAT_OK'"
     }
   ],
   "semver": {
