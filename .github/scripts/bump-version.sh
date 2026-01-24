@@ -77,12 +77,16 @@ parse_commits() {
         local msg="${commit}"
         
         # Categorize by conventional commit type
-        if [[ "$commit" =~ ^feat(\([^)]+\))?:\ (.+)$ ]]; then
-            added="${added}- ${BASH_REMATCH[2]}\n"
-        elif [[ "$commit" =~ ^fix(\([^)]+\))?:\ (.+)$ ]]; then
-            fixed="${fixed}- ${BASH_REMATCH[2]}\n"
-        elif [[ "$commit" =~ ^(refactor|perf|style|docs|chore)(\([^)]+\))?:\ (.+)$ ]]; then
-            changed="${changed}- ${BASH_REMATCH[3]}\n"
+        if [[ "$commit" =~ ^feat ]]; then
+            # Extract message after colon
+            msg=$(echo "$commit" | sed 's/^feat[^:]*:[[:space:]]*//')
+            added="${added}- ${msg}\n"
+        elif [[ "$commit" =~ ^fix ]]; then
+            msg=$(echo "$commit" | sed 's/^fix[^:]*:[[:space:]]*//')
+            fixed="${fixed}- ${msg}\n"
+        elif [[ "$commit" =~ ^(refactor|perf|style|docs|chore) ]]; then
+            msg=$(echo "$commit" | sed 's/^[^:]*:[[:space:]]*//')
+            changed="${changed}- ${msg}\n"
         else
             # No conventional commit prefix, add to Changed
             changed="${changed}- ${msg}\n"
