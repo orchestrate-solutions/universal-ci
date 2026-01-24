@@ -23,12 +23,12 @@
     {
       "name": "Test Shell Script - Help Output",
       "working_directory": ".",
-      "command": "./run-ci.sh --help | grep -q 'Universal CI Verifier'"
+      "command": "./run-ci.sh --help | grep 'Universal CI Verifier'"
     },
     {
       "name": "Test Shell Script - Missing Config Error",
       "working_directory": ".",
-      "command": "./run-ci.sh --config nonexistent.json 2>&1 | grep -q 'not found'"
+      "command": "./run-ci.sh --config nonexistent.json 2>&1 | grep 'not found'"
     },
     {
       "name": "Test Python Script Still Works",

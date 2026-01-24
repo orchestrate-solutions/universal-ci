@@ -553,19 +553,20 @@ main() {
     # Parse tasks into temp file to preserve across subshells
     tmp_tasks=$(mktemp)
     tmp_failures=$(mktemp)
+    tmp_passed=$(mktemp)
     parse_tasks "$config_path" "$STAGE" > "$tmp_tasks"
     
     # Check if we have any tasks
     if [ ! -s "$tmp_tasks" ]; then
         printf "   ${YELLOW}No tasks found for stage: ${STAGE}${RESET}\n"
-        rm -f "$tmp_tasks" "$tmp_failures"
+        rm -f "$tmp_tasks" "$tmp_failures" "$tmp_passed"
         exit 0
     fi
     
     # Interactive mode: list tasks and exit
     if [ "$LIST_TASKS_ONLY" = "true" ]; then
         output_tasks_json "$tmp_tasks"
-        rm -f "$tmp_tasks" "$tmp_failures"
+        rm -f "$tmp_tasks" "$tmp_failures" "$tmp_passed"
         exit 0
     fi
     
@@ -593,6 +594,8 @@ main() {
         if [ -n "$name" ]; then
             if ! run_task "$name" "$dir" "$cmd" "$cache_key" "$condition" "$requires_approval"; then
                 echo "$name" >> "$tmp_failures"
+            else
+                echo "$name" >> "$tmp_passed"
             fi
         fi
     done < "$tmp_tasks"
@@ -600,17 +603,25 @@ main() {
     echo "---------------------------------------------------"
     printf "${BLUE}📊 SUMMARY${RESET}\n"
     
+    # Show passed tasks
+    if [ -s "$tmp_passed" ]; then
+        while read -r pass_name; do
+            echo "   ✅ $pass_name"
+        done < "$tmp_passed"
+    fi
+
     # Check for failures
     if [ -s "$tmp_failures" ]; then
         printf "${RED}🚨 FAILURES DETECTED:${RESET}\n"
         while read -r fail_name; do
-            echo "   - ${fail_name}"
+            echo "   ❌ ${fail_name}"
         done < "$tmp_failures"
-        rm -f "$tmp_tasks" "$tmp_failures"
+        rm -f "$tmp_tasks" "$tmp_failures" "$tmp_passed"
         exit 1
     else
+        echo ""
         printf "${GREEN}🎉 ALL SYSTEMS GO! Universal CI Passed.${RESET}\n"
-        rm -f "$tmp_tasks" "$tmp_failures"
+        rm -f "$tmp_tasks" "$tmp_failures" "$tmp_passed"
         exit 0
     fi
 }
