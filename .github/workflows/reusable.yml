@@ -46,8 +46,8 @@ jobs:
       
       - name: Fetch Logic Engine
         run: |
-          # Fetch verify.sh from the Universal CI main branch
-          curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/verify.sh -o .verify_engine.sh
+          # Fetch run-ci.sh from the Universal CI main branch
+          curl -sL https://raw.githubusercontent.com/orchestrate-solutions/universal-ci/main/run-ci.sh -o .verify_engine.sh
           chmod +x .verify_engine.sh
           
       - name: Run Validation

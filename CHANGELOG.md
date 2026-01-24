@@ -16,13 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.3.0] - 2026-01-24
 
 ### Added
-- 
+- **Enhanced CI Summary Output:** Added detailed task-by-task summary at the end of CI runs, showing all passed tasks with checkmarks for better visibility.
+- **Improved Test Visibility:** Removed quiet flags from test commands to show actual output, making it easier to verify what was tested.
 
 ### Changed
-- 
-
-### Fixed
-- 
+- **CI Workflow Fix:** Updated GitHub Actions reusable workflow to fetch `run-ci.sh` instead of non-existent `verify.sh`.
 
 
 ## [1.2.5] - 2026-01-24
